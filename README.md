@@ -1,6 +1,13 @@
 # CRM — Upjack Demo App
 
+[![mpak](https://img.shields.io/badge/mpak-registry-blue)](https://mpak.dev/packages/@nimblebraininc/synapse-crm?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
+[![NimbleBrain](https://img.shields.io/badge/NimbleBrain-nimblebrain.ai-purple)](https://nimblebrain.ai?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
+[![Discord](https://img.shields.io/badge/Discord-community-5865F2)](https://nimblebrain.ai/discord?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews, built with Upjack.
+
+**[View on mpak registry](https://mpak.dev/packages/@nimblebraininc/synapse-crm?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)** | **Built by [NimbleBrain](https://nimblebrain.ai?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)**
 
 ## What This Demonstrates
 

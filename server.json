@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schemas.nimblebrain.ai/v1/nimblebrain-server.schema.json",
+  "name": "ai.nimblebrain/synapse-crm",
+  "description": "Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews",
+  "version": "0.1.0",
+  "title": "CRM Synapse App",
+  "repository": {
+    "url": "https://github.com/NimbleBrainInc/synapse-crm",
+    "source": "https://github.com/NimbleBrainInc/synapse-crm"
+  },
+  "_meta": {
+    "ai.nimblebrain/v1": {
+      "runtime": "python:3.13",
+      "capabilities": {
+        "tools": true,
+        "resources": true,
+        "prompts": false
+      },
+      "display": {
+        "category": "sales",
+        "tags": [
+          "synapse",
+          "crm",
+          "contacts",
+          "deals",
+          "pipeline",
+          "upjack",
+          "ui"
+        ]
+      },
+      "deployment": {
+        "protocol": "http",
+        "port": 8000,
+        "mcpPath": "/mcp"
+      },
+      "container": {
+        "healthCheck": {
+          "path": "/health",
+          "port": 8000
+        }
+      },
+      "resources": {
+        "limits": {
+          "memory": "512Mi",
+          "cpu": "1000m"
+        },
+        "requests": {
+          "memory": "256Mi",
+          "cpu": "250m"
+        }
+      },
+      "scaling": {
+        "minReplicas": 1,
+        "maxReplicas": 3
+      }
+    }
+  }
+}

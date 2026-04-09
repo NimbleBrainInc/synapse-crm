@@ -6,6 +6,10 @@
   "author": {
     "name": "NimbleBrain Inc."
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NimbleBrainInc/synapse-crm"
+  },
   "server": {
     "type": "python",
     "entry_point": "synapse_crm.server",
@@ -15,18 +19,61 @@
     }
   },
   "_meta": {
-    "ai.nimblebrain/synapse": {
+    "org.mpaktrust": {
+      "mtf_version": "0.1",
+      "permissions": {
+        "filesystem": "read",
+        "network": "none",
+        "environment": "read",
+        "subprocess": "none",
+        "native": "none"
+      }
+    },
+    "ai.nimblebrain/host": {
+      "host_version": "1.0",
       "name": "CRM",
       "icon": "users",
+      "category": "sales",
       "placements": [
         {
           "slot": "sidebar.apps",
           "resourceUri": "ui://crm/main",
-          "route": "@nimblebraininc/crm",
+          "route": "@nimblebraininc/synapse-crm",
           "label": "CRM",
           "icon": "users"
         }
-      ]
+      ],
+      "briefing": {
+        "priority": "high",
+        "facets": [
+          {
+            "name": "pipeline_movement",
+            "label": "Pipeline",
+            "type": "delta",
+            "entity": "deal",
+            "query": { "updated_at": { "$gte": "${period.since}" } },
+            "description": "Deals that moved stages"
+          },
+          {
+            "name": "overdue_followups",
+            "label": "Follow-ups",
+            "type": "attention",
+            "entity": "interaction",
+            "query": { "follow_up_date": { "$lt": "${now}", "$ne": null } },
+            "metric": "count",
+            "description": "Follow-ups past their due date"
+          },
+          {
+            "name": "new_contacts",
+            "label": "New contacts",
+            "type": "activity",
+            "entity": "contact",
+            "query": { "created_at": { "$gte": "${period.since}" } },
+            "metric": "count",
+            "description": "Contacts added in this period"
+          }
+        ]
+      }
     },
     "ai.nimblebrain/upjack": {
       "upjack_version": "0.1",

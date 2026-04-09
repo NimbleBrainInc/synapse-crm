@@ -1,0 +1,7 @@
+{
+  "$schema": "https://cdn.mpak.dev/schemas/2025-10-19/mpak.json",
+  "name": "@nimblebraininc/synapse-crm",
+  "maintainers": [
+    "mgoldsborough"
+  ]
+}

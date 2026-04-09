@@ -7,9 +7,6 @@ dependencies = [
     "upjack[mcp]>=0.2.0",
 ]
 
-[tool.uv.sources]
-upjack = { path = "../../products/upjack/code/lib/python", editable = true }
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
