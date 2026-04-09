@@ -1,0 +1,226 @@
+[
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Acme Corp — Agent Infrastructure Buildout",
+    "value": 85000,
+    "stage": "proposal",
+    "close_date": "2026-05-15",
+    "probability": 50,
+    "contact_name": "Sarah Chen",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Blue Ridge — Patient Portal Modernization",
+    "value": 120000,
+    "stage": "qualified",
+    "close_date": "2026-07-01",
+    "probability": 25,
+    "contact_name": "Marcus Rivera",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Startup Ventures — Architecture Advisory",
+    "value": 15000,
+    "stage": "lead",
+    "probability": 10,
+    "contact_name": "Priya Patel",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Acme Corp — MCP Integration Pilot",
+    "value": 25000,
+    "stage": "closed_won",
+    "close_date": "2026-03-10",
+    "probability": 100,
+    "contact_name": "Sarah Chen",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "NexGen AI — Platform MCP Tooling",
+    "value": 45000,
+    "stage": "negotiation",
+    "close_date": "2026-05-01",
+    "probability": 75,
+    "contact_name": "David Park",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Clearwater Capital — Portfolio AI Advisory",
+    "value": 200000,
+    "stage": "proposal",
+    "close_date": "2026-06-15",
+    "probability": 40,
+    "contact_name": "James Whitfield",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "TalentBridge — Recruitment AI Agents",
+    "value": 35000,
+    "stage": "qualified",
+    "close_date": "2026-06-01",
+    "probability": 30,
+    "contact_name": "Lisa Nakamura",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Meridian Logistics — Dispatch Optimization",
+    "value": 95000,
+    "stage": "lead",
+    "probability": 15,
+    "contact_name": "Roberto Garza",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Bright Horizons — AI Tutoring Platform",
+    "value": 60000,
+    "stage": "proposal",
+    "close_date": "2026-05-30",
+    "probability": 45,
+    "contact_name": "Emma Thompson",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "DevForge — MCP Integration Consulting",
+    "value": 30000,
+    "stage": "negotiation",
+    "close_date": "2026-04-25",
+    "probability": 80,
+    "contact_name": "Raj Mehta",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Pacific Realty — AI Listing & Lead Scoring",
+    "value": 40000,
+    "stage": "qualified",
+    "close_date": "2026-06-15",
+    "probability": 25,
+    "contact_name": "Angela Morrison",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Coastal FinTech — Compliant Agent Framework",
+    "value": 110000,
+    "stage": "lead",
+    "probability": 10,
+    "contact_name": "Tom Bradley",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "SynthWave AI — Channel Partnership",
+    "value": 75000,
+    "stage": "negotiation",
+    "close_date": "2026-05-10",
+    "probability": 60,
+    "contact_name": "Nina Volkov",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Green Valley Farms — Crop Monitoring Agents",
+    "value": 28000,
+    "stage": "lead",
+    "probability": 10,
+    "contact_name": "Chris Donovan",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Apex Consulting — APAC Reseller Agreement",
+    "value": 150000,
+    "stage": "proposal",
+    "close_date": "2026-07-01",
+    "probability": 35,
+    "contact_name": "Mei Lin Wong",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Urban Health — Community Outreach AI",
+    "value": 22000,
+    "stage": "qualified",
+    "close_date": "2026-06-30",
+    "probability": 20,
+    "contact_name": "Derek Washington",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Shogun Tech — MCP Server Pilot",
+    "value": 55000,
+    "stage": "lead",
+    "probability": 15,
+    "contact_name": "Yuki Tanaka",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "Harbor Insurance — Claims AI Automation",
+    "value": 90000,
+    "stage": "qualified",
+    "close_date": "2026-07-15",
+    "probability": 20,
+    "contact_name": "Ben Crawford",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "BrightPath Academy — STEM AI Tutors",
+    "value": 18000,
+    "stage": "lead",
+    "probability": 10,
+    "contact_name": "Maria Santos",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "DataCanvas EU — GDPR-Compliant AI Tooling",
+    "value": 65000,
+    "stage": "closed_lost",
+    "close_date": "2026-03-20",
+    "probability": 0,
+    "contact_name": "Sophie Laurent",
+    "tags": ["sample"]
+  },
+  {
+    "type": "deal",
+    "version": 1,
+    "title": "OpenLoop — Integration Partnership",
+    "value": 0,
+    "stage": "lead",
+    "probability": 20,
+    "contact_name": "Julia Chen-Ramirez",
+    "tags": ["sample"]
+  }
+]

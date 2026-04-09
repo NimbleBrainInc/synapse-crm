@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CRM Contact",
+  "description": "A person or lead in the CRM — the central entity that deals and interactions link to.",
+  "allOf": [
+    { "$ref": "https://upjack.dev/schemas/v1/upjack-entity.schema.json" }
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Full name of the contact",
+      "maxLength": 128
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Primary email address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number in any format"
+    },
+    "company": {
+      "type": "string",
+      "description": "Company or organization the contact belongs to"
+    },
+    "role": {
+      "type": "string",
+      "description": "Job title or role at the company"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form notes about this contact"
+    },
+    "lead_source": {
+      "type": "string",
+      "enum": ["referral", "inbound", "outbound", "event", "other"],
+      "description": "How this contact was acquired"
+    }
+  },
+  "required": ["name"]
+}

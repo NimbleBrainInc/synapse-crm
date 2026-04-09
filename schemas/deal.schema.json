@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CRM Deal",
+  "description": "A sales opportunity tied to a contact. Tracks value, stage, and close date through the pipeline.",
+  "allOf": [
+    { "$ref": "https://upjack.dev/schemas/v1/upjack-entity.schema.json" }
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Short name for this deal or opportunity",
+      "maxLength": 256
+    },
+    "value": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Dollar value of the deal"
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"],
+      "default": "lead",
+      "description": "Current pipeline stage"
+    },
+    "close_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected or actual close date (ISO YYYY-MM-DD)"
+    },
+    "probability": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Win probability as a percentage (0-100)"
+    },
+    "contact_name": {
+      "type": "string",
+      "description": "Denormalized contact name for quick display"
+    }
+  },
+  "required": ["title"]
+}

@@ -1,0 +1,163 @@
+[
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "meeting",
+    "summary": "Discovery call — discussed agent infrastructure needs and team size",
+    "details": "Sarah's team of 12 engineers is building internal tools. They need a way to orchestrate agents across their platform. Current pain: manual prompt management and no observability. Budget approved for Q2.",
+    "occurred_at": "2026-03-20T10:00:00Z",
+    "follow_up_date": "2026-03-24",
+    "contact_name": "Sarah Chen",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "email",
+    "summary": "Sent proposal for agent infrastructure buildout",
+    "details": "Attached SOW with three phases: assessment (2 weeks), pilot (4 weeks), rollout (6 weeks). Total $85K.",
+    "occurred_at": "2026-03-25T14:30:00Z",
+    "follow_up_date": "2026-03-28",
+    "contact_name": "Sarah Chen",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "call",
+    "summary": "Intro call with Marcus — walked through patient portal challenges",
+    "details": "Legacy .NET system, 15 years old. Needs to support mobile and integrate with Epic EHR. Marcus has board approval but needs a phased approach.",
+    "occurred_at": "2026-03-18T15:00:00Z",
+    "follow_up_date": "2026-03-25",
+    "contact_name": "Marcus Rivera",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "email",
+    "summary": "Sent case study and qualification questionnaire",
+    "occurred_at": "2026-03-26T09:15:00Z",
+    "follow_up_date": "2026-04-01",
+    "contact_name": "Marcus Rivera",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "note",
+    "summary": "Priya submitted contact form — wants to discuss AI architecture for MVP",
+    "details": "Pre-seed startup building an AI-native recruiting tool. Looking for fractional CTO-level guidance on architecture decisions.",
+    "occurred_at": "2026-04-01T11:00:00Z",
+    "contact_name": "Priya Patel",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "meeting",
+    "summary": "Platform demo with David — showed MCP server orchestration",
+    "details": "David was impressed with the bundle lifecycle management. Wants to trial with 3 internal tools. Mentioned Sarah Chen recommended us.",
+    "occurred_at": "2026-03-28T16:00:00Z",
+    "follow_up_date": "2026-04-02",
+    "contact_name": "David Park",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "call",
+    "summary": "James exploring AI advisory for 4 portfolio companies",
+    "details": "Clearwater has 12 portfolio companies, 4 are actively exploring AI. James wants a framework deal — we advise all 4 under one agreement.",
+    "occurred_at": "2026-03-22T11:00:00Z",
+    "follow_up_date": "2026-03-29",
+    "contact_name": "James Whitfield",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "email",
+    "summary": "Sent portfolio advisory proposal to James",
+    "occurred_at": "2026-04-01T10:00:00Z",
+    "follow_up_date": "2026-04-04",
+    "contact_name": "James Whitfield",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "meeting",
+    "summary": "Coffee with Lisa at Honolulu tech meetup",
+    "details": "Lisa runs ops at TalentBridge. 50-person recruiting firm drowning in manual screening. Referred Priya Patel to us.",
+    "occurred_at": "2026-03-15T18:00:00Z",
+    "follow_up_date": "2026-03-20",
+    "contact_name": "Lisa Nakamura",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "call",
+    "summary": "Negotiation call with Raj — finalizing scope",
+    "details": "Raj wants a fixed-price engagement. Agreed on 4-week timeline, 3 MCP integrations. Final sign-off pending legal review.",
+    "occurred_at": "2026-04-03T14:00:00Z",
+    "follow_up_date": "2026-04-07",
+    "contact_name": "Raj Mehta",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "meeting",
+    "summary": "Partnership deep-dive with Nina — bundling voice + agents",
+    "details": "SynthWave builds voice interfaces. They want to bundle our agent infrastructure as the 'brain' behind their voice products. Revenue share model discussed.",
+    "occurred_at": "2026-04-02T13:00:00Z",
+    "follow_up_date": "2026-04-05",
+    "contact_name": "Nina Volkov",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "email",
+    "summary": "Cold outreach to Roberto about dispatch optimization",
+    "details": "Meridian runs 800+ trucks. Sent them our logistics case study and a personalized video walkthrough.",
+    "occurred_at": "2026-03-30T09:00:00Z",
+    "follow_up_date": "2026-04-03",
+    "contact_name": "Roberto Garza",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "meeting",
+    "summary": "Discovery with Emma — AI tutoring for higher ed",
+    "details": "Bright Horizons has 15K students. Want AI tutors for 3 STEM subjects initially. Budget from a federal innovation grant.",
+    "occurred_at": "2026-03-27T10:00:00Z",
+    "follow_up_date": "2026-04-01",
+    "contact_name": "Emma Thompson",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "note",
+    "summary": "Sophie's deal went cold — compliance team blocked external AI vendors",
+    "details": "DataCanvas EU internal compliance flagged our US data residency. Deal unlikely to recover without EU hosting.",
+    "occurred_at": "2026-03-20T16:00:00Z",
+    "contact_name": "Sophie Laurent",
+    "tags": ["sample"]
+  },
+  {
+    "type": "interaction",
+    "version": 1,
+    "interaction_type": "call",
+    "summary": "Mei Lin wants to resell our advisory in APAC",
+    "details": "Apex has 30 enterprise clients in HK and Singapore. Wants exclusive reseller rights for 12 months. We'd train their team.",
+    "occurred_at": "2026-04-01T22:00:00Z",
+    "follow_up_date": "2026-04-08",
+    "contact_name": "Mei Lin Wong",
+    "tags": ["sample"]
+  }
+]

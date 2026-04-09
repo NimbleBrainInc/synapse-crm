@@ -1,0 +1,124 @@
+{
+  "manifest_version": "0.4",
+  "name": "@nimblebraininc/synapse-crm",
+  "version": "1.0.0",
+  "description": "Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews.",
+  "author": {
+    "name": "NimbleBrain Inc."
+  },
+  "server": {
+    "type": "python",
+    "entry_point": "synapse_crm.server",
+    "mcp_config": {
+      "command": "python",
+      "args": ["-m", "synapse_crm.server"]
+    }
+  },
+  "_meta": {
+    "ai.nimblebrain/synapse": {
+      "name": "CRM",
+      "icon": "users",
+      "placements": [
+        {
+          "slot": "sidebar.apps",
+          "resourceUri": "ui://crm/main",
+          "route": "@nimblebraininc/crm",
+          "label": "CRM",
+          "icon": "users"
+        }
+      ]
+    },
+    "ai.nimblebrain/upjack": {
+      "upjack_version": "0.1",
+      "namespace": "apps/crm",
+      "display": {
+        "name": "CRM",
+        "icon": "users",
+        "category": "sales"
+      },
+      "entities": [
+        {
+          "name": "contact",
+          "plural": "contacts",
+          "schema": "schemas/contact.schema.json",
+          "prefix": "ct",
+          "index": true,
+          "tools": ["get", "update", "list", "search", "delete", "query_by_relationship", "get_related", "get_composite"]
+        },
+        {
+          "name": "deal",
+          "plural": "deals",
+          "schema": "schemas/deal.schema.json",
+          "prefix": "dl",
+          "index": true
+        },
+        {
+          "name": "interaction",
+          "plural": "interactions",
+          "schema": "schemas/interaction.schema.json",
+          "prefix": "ix",
+          "index": true
+        }
+      ],
+      "skills": [
+        {
+          "source": "bundled",
+          "path": "skills/follow-up-coach/SKILL.md"
+        },
+        {
+          "source": "bundled",
+          "path": "skills/pipeline-reviewer/SKILL.md"
+        }
+      ],
+      "hooks": [
+        {
+          "event": "entity.created",
+          "entity": "interaction",
+          "skill": "bundled:follow-up-coach"
+        },
+        {
+          "event": "entity.updated",
+          "entity": "deal",
+          "condition": "$.stage changed",
+          "skill": "bundled:follow-up-coach"
+        }
+      ],
+      "schedules": [
+        {
+          "name": "daily-pipeline-review",
+          "cron": "0 9 * * 1-5",
+          "skill": "bundled:pipeline-reviewer",
+          "description": "Weekday morning review of pipeline health, stale deals, and overdue follow-ups."
+        }
+      ],
+      "views": [
+        {
+          "name": "active-pipeline",
+          "entity": "deal",
+          "description": "All active deals sorted by value (highest first)",
+          "filter": "$.status == 'active'",
+          "sort": "-value"
+        },
+        {
+          "name": "needs-followup",
+          "entity": "interaction",
+          "description": "Interactions with overdue or upcoming follow-up dates",
+          "filter": "$.follow_up_date != null",
+          "sort": "follow_up_date"
+        },
+        {
+          "name": "recent-interactions",
+          "entity": "interaction",
+          "description": "Most recent interactions across all contacts",
+          "filter": "$.status == 'active'",
+          "sort": "-occurred_at"
+        }
+      ],
+      "context": "context.md",
+      "seed": {
+        "data": "seed/",
+        "run_on_install": true
+      }
+    }
+  }
+}

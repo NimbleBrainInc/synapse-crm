@@ -1,0 +1,18 @@
+[project]
+name = "synapse-crm"
+version = "1.0.0"
+description = "Lightweight CRM with contact management, deal pipeline, and agent-driven follow-ups"
+requires-python = ">=3.13"
+dependencies = [
+    "upjack[mcp]>=0.2.0",
+]
+
+[tool.uv.sources]
+upjack = { path = "../../products/upjack/code/lib/python", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/synapse_crm"]

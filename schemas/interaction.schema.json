@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CRM Interaction",
+  "description": "A logged activity (meeting, email, call, note) linked to a contact.",
+  "allOf": [
+    { "$ref": "https://upjack.dev/schemas/v1/upjack-entity.schema.json" }
+  ],
+  "properties": {
+    "interaction_type": {
+      "type": "string",
+      "enum": ["meeting", "email", "call", "note"],
+      "description": "Type of interaction"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Brief summary of what happened",
+      "maxLength": 512
+    },
+    "details": {
+      "type": "string",
+      "description": "Detailed notes about the interaction"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the interaction took place (ISO datetime)"
+    },
+    "follow_up_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date by which to follow up (ISO YYYY-MM-DD)"
+    },
+    "contact_name": {
+      "type": "string",
+      "description": "Denormalized contact name for quick display"
+    }
+  },
+  "required": ["interaction_type", "summary"]
+}

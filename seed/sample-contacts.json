@@ -1,0 +1,352 @@
+[
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Sarah Chen",
+    "email": "sarah.chen@acmecorp.com",
+    "phone": "(415) 555-0142",
+    "company": "Acme Corp",
+    "role": "VP of Engineering",
+    "notes": "Met at AI Summit 2026. Interested in agent infrastructure. Knows David Park (former colleague).",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "event"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Marcus Rivera",
+    "email": "m.rivera@blueridgehealthcare.org",
+    "phone": "(312) 555-0198",
+    "company": "Blue Ridge Healthcare",
+    "role": "CTO",
+    "notes": "Referral from James Whitfield. Has a 6-month timeline to modernize their patient portal.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Priya Patel",
+    "email": "priya@startupventures.io",
+    "phone": "(628) 555-0067",
+    "company": "Startup Ventures",
+    "role": "Founder & CEO",
+    "notes": "Inbound from website. Building an AI-native recruiting tool. Referred by Lisa Nakamura.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "inbound"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "David Park",
+    "email": "david.park@nexgenai.com",
+    "phone": "(650) 555-0234",
+    "company": "NexGen AI",
+    "role": "Director of Platform",
+    "notes": "Former Acme Corp. Sarah Chen's ex-colleague. Evaluating MCP tooling for their internal platform.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "outbound"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "James Whitfield",
+    "email": "j.whitfield@clearwatercap.com",
+    "phone": "(212) 555-0189",
+    "company": "Clearwater Capital",
+    "role": "Managing Partner",
+    "notes": "Investor contact. Referred Marcus Rivera. Interested in AI advisory for portfolio companies.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Lisa Nakamura",
+    "email": "lisa@talentbridge.co",
+    "phone": "(808) 555-0321",
+    "company": "TalentBridge",
+    "role": "COO",
+    "notes": "Met at Honolulu tech meetup. Referred Priya Patel. Exploring AI for recruitment workflows.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "event"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Roberto Garza",
+    "email": "rgarza@meridianlogistics.com",
+    "phone": "(713) 555-0456",
+    "company": "Meridian Logistics",
+    "role": "VP of Operations",
+    "notes": "Cold outreach hit. Large fleet management company. Pain point: manual dispatch optimization.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "outbound"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Emma Thompson",
+    "email": "emma.t@brighthorizons.edu",
+    "phone": "(617) 555-0178",
+    "company": "Bright Horizons Education",
+    "role": "Chief Innovation Officer",
+    "notes": "Inbound from blog post on AI agents. Exploring AI tutoring systems. Knows James Whitfield (board connection).",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "inbound"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Raj Mehta",
+    "email": "raj@devforge.io",
+    "phone": "(408) 555-0567",
+    "company": "DevForge",
+    "role": "CEO",
+    "notes": "YC W24 batch. Building developer tools. David Park intro'd us. Wants MCP integration consulting.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Angela Morrison",
+    "email": "angela@pacificrealty.com",
+    "phone": "(503) 555-0890",
+    "company": "Pacific Realty Group",
+    "role": "Managing Broker",
+    "notes": "Met through Lisa Nakamura. 200+ agents. Wants AI for listing descriptions and lead scoring.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Tom Bradley",
+    "email": "tom@coastalfintech.com",
+    "phone": "(858) 555-0234",
+    "company": "Coastal FinTech",
+    "role": "CTO",
+    "notes": "Conference connection via Sarah Chen. Regulated fintech. Needs compliant AI agent framework.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "event"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Nina Volkov",
+    "email": "nina@synthwave.ai",
+    "phone": "(415) 555-0678",
+    "company": "SynthWave AI",
+    "role": "Head of Partnerships",
+    "notes": "Potential channel partner. They build voice AI, want to bundle our agent infrastructure.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "inbound"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Chris Donovan",
+    "email": "cdonovan@greenvalleyfarms.com",
+    "phone": "(541) 555-0345",
+    "company": "Green Valley Farms",
+    "role": "Operations Director",
+    "notes": "Roberto Garza referral. AgTech use case \u2014 crop monitoring with AI agents.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Mei Lin Wong",
+    "email": "mei@apexconsulting.hk",
+    "phone": "+852-5555-0123",
+    "company": "Apex Consulting HK",
+    "role": "Partner",
+    "notes": "APAC expansion opportunity. Wants to resell our advisory services in Hong Kong market.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "outbound"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Derek Washington",
+    "email": "derek@urbanhealth.org",
+    "phone": "(202) 555-0456",
+    "company": "Urban Health Initiative",
+    "role": "Executive Director",
+    "notes": "Nonprofit. Marcus Rivera introduction. Interested in AI for community health outreach.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Sophie Laurent",
+    "email": "sophie@datacanvas.eu",
+    "phone": "+33-555-0789",
+    "company": "DataCanvas EU",
+    "role": "VP of Product",
+    "notes": "EU data visualization company. Met at Web Summit. GDPR-conscious, needs compliant AI tooling.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "event"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Kevin Okafor",
+    "email": "kevin@atlaspay.ng",
+    "phone": "+234-555-0234",
+    "company": "AtlasPay",
+    "role": "Founder",
+    "notes": "African fintech. Tom Bradley connection. Building payment agents for emerging markets.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Hannah Berg",
+    "email": "hannah@nordicai.se",
+    "phone": "+46-555-0567",
+    "company": "Nordic AI Labs",
+    "role": "Research Director",
+    "notes": "Academic-adjacent. Potential whitepaper collaboration. Sophie Laurent intro.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Alex Reyes",
+    "email": "alex@velocitycrm.com",
+    "phone": "(512) 555-0890",
+    "company": "Velocity CRM",
+    "role": "Head of AI",
+    "notes": "Competitive intelligence. They're building AI features into their CRM. Raj Mehta flagged them.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "outbound"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Yuki Tanaka",
+    "email": "yuki@shoguntech.jp",
+    "phone": "+81-555-0345",
+    "company": "Shogun Tech",
+    "role": "CTO",
+    "notes": "Japanese enterprise. Mei Lin Wong connection. Want to pilot MCP servers for internal tools.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Maria Santos",
+    "email": "maria@brightpath.edu",
+    "phone": "(305) 555-0678",
+    "company": "BrightPath Academy",
+    "role": "Head of Technology",
+    "notes": "K-12 edtech. Emma Thompson referral. Wants AI tutor agents for STEM courses.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Frank Mueller",
+    "email": "frank@precisionmfg.de",
+    "phone": "+49-555-0123",
+    "company": "Precision Manufacturing GmbH",
+    "role": "Digital Transformation Lead",
+    "notes": "German manufacturer. Sophie Laurent intro. Exploring AI for quality control and predictive maintenance.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Aisha Koroma",
+    "email": "aisha@sunrisehealth.ke",
+    "phone": "+254-555-0456",
+    "company": "Sunrise Health",
+    "role": "CEO",
+    "notes": "East African telehealth. Derek Washington connection. AI triage for rural clinics.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Ben Crawford",
+    "email": "ben@harborinsurance.com",
+    "phone": "(206) 555-0789",
+    "company": "Harbor Insurance",
+    "role": "SVP of Claims",
+    "notes": "Angela Morrison referral. Wants AI agents for claims processing automation.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "referral"
+  },
+  {
+    "type": "contact",
+    "version": 1,
+    "name": "Julia Chen-Ramirez",
+    "email": "julia@openloop.dev",
+    "phone": "(415) 555-0012",
+    "company": "OpenLoop",
+    "role": "Co-Founder",
+    "notes": "Open source MCP tooling company. Potential integration partner. Met at MCP Dev Summit.",
+    "tags": [
+      "sample"
+    ],
+    "lead_source": "event"
+  }
+]
