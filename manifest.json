@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.4",
   "name": "@nimblebraininc/synapse-crm",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews.",
   "author": {
     "name": "NimbleBrain Inc."

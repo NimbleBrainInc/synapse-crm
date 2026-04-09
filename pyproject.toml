@@ -1,6 +1,6 @@
 [project]
 name = "synapse-crm"
-version = "1.0.0"
+version = "0.1.0"
 description = "Lightweight CRM with contact management, deal pipeline, and agent-driven follow-ups"
 requires-python = ">=3.13"
 dependencies = [
