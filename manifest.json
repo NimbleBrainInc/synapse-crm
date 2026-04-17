@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.4",
   "name": "@nimblebraininc/synapse-crm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews.",
   "author": {
     "name": "NimbleBrain Inc."
@@ -15,7 +15,10 @@
     "entry_point": "synapse_crm.server",
     "mcp_config": {
       "command": "python",
-      "args": ["-m", "synapse_crm.server"]
+      "args": [
+        "-m",
+        "synapse_crm.server"
+      ]
     }
   },
   "_meta": {
@@ -51,7 +54,11 @@
             "label": "Pipeline",
             "type": "delta",
             "entity": "deal",
-            "query": { "updated_at": { "$gte": "${period.since}" } },
+            "query": {
+              "updated_at": {
+                "$gte": "${period.since}"
+              }
+            },
             "description": "Deals that moved stages"
           },
           {
@@ -59,7 +66,12 @@
             "label": "Follow-ups",
             "type": "attention",
             "entity": "interaction",
-            "query": { "follow_up_date": { "$lt": "${now}", "$ne": null } },
+            "query": {
+              "follow_up_date": {
+                "$lt": "${now}",
+                "$ne": null
+              }
+            },
             "metric": "count",
             "description": "Follow-ups past their due date"
           },
@@ -68,7 +80,11 @@
             "label": "New contacts",
             "type": "activity",
             "entity": "contact",
-            "query": { "created_at": { "$gte": "${period.since}" } },
+            "query": {
+              "created_at": {
+                "$gte": "${period.since}"
+              }
+            },
             "metric": "count",
             "description": "Contacts added in this period"
           }
@@ -90,7 +106,16 @@
           "schema": "schemas/contact.schema.json",
           "prefix": "ct",
           "index": true,
-          "tools": ["get", "update", "list", "search", "delete", "query_by_relationship", "get_related", "get_composite"]
+          "tools": [
+            "get",
+            "update",
+            "list",
+            "search",
+            "delete",
+            "query_by_relationship",
+            "get_related",
+            "get_composite"
+          ]
         },
         {
           "name": "deal",

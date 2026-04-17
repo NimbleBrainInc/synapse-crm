@@ -2,7 +2,7 @@
   "$schema": "https://schemas.nimblebrain.ai/v1/nimblebrain-server.schema.json",
   "name": "ai.nimblebrain/synapse-crm",
   "description": "Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "CRM Synapse App",
   "repository": {
     "url": "https://github.com/NimbleBrainInc/synapse-crm",
