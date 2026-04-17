@@ -1,4 +1,4 @@
-.PHONY: dev build build-ui clean typecheck lint run run-http bump
+.PHONY: dev build build-ui clean typecheck lint test run run-http bump
 
 # Development — starts MCP server + Vite with HMR preview
 dev:
@@ -24,6 +24,9 @@ typecheck:
 
 lint:
 	uv run ruff check src/
+
+test:
+	uv run pytest tests/
 
 clean:
 	rm -rf ui/dist ui/node_modules deps/*.egg-info

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Lightweight CRM with contact management, deal pipeline, and agent-driven follow-ups"
 requires-python = ">=3.13"
 dependencies = [
-    "upjack[mcp]>=0.2.0",
+    "upjack[mcp]>=0.5.1",
 ]
 
 [build-system]
@@ -13,3 +13,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/synapse_crm"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=0.24.0",
+]
