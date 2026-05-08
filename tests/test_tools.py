@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 import pytest
 from fastmcp.exceptions import ToolError
 
+from synapse_crm.tools.link_deals_to_contacts import link_deals_to_contacts
 from tests.conftest import _call_tool, _run
 
 
@@ -426,6 +427,38 @@ class TestLinkDealsToContacts:
 
         fetched = _run(_call_tool(mcp, "get_deal", {"deal_id": deal["id"]}))
         assert _deal_belongs_to_targets(fetched) == []
+
+    def test_startup_hook_backfills_relationships_idempotently(self, mcp, app):
+        """Mirrors the server-startup hook: deals seeded with ``contact_name``
+        but no ``belongs_to`` should become reachable via ``query_by_relationship``
+        after a single call, and a re-run must not duplicate the edge."""
+        alice = _create_contact(mcp, name="Alice")
+        _create_contact(mcp, name="Bob")
+
+        alice_deal = _create_deal(
+            mcp, title="Alice Deal", stage="qualified", contact_name="Alice"
+        )
+        _create_deal(mcp, title="Bob Deal", stage="qualified", contact_name="Bob")
+
+        # Pre-condition: no graph edge wires the Alice deal to Alice yet.
+        before = app.query_by_relationship("deal", "belongs_to", alice["id"])
+        assert before == []
+
+        # First run wires the relationships up.
+        link_deals_to_contacts(app)
+        after_first = app.query_by_relationship("deal", "belongs_to", alice["id"])
+        assert [d["id"] for d in after_first] == [alice_deal["id"]]
+
+        # Second run is a no-op: still exactly one belongs_to edge, not two.
+        link_deals_to_contacts(app)
+        after_second = app.query_by_relationship("deal", "belongs_to", alice["id"])
+        assert [d["id"] for d in after_second] == [alice_deal["id"]]
+
+        fetched = _run(_call_tool(mcp, "get_deal", {"deal_id": alice_deal["id"]}))
+        targets = _deal_belongs_to_targets(fetched)
+        assert targets.count(alice["id"]) == 1, (
+            f"expected exactly one belongs_to -> {alice['id']}, got {targets!r}"
+        )
 
 
 # ---------------------------------------------------------------------------

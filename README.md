@@ -18,6 +18,7 @@ Lightweight contact and deal tracker with agent-driven follow-ups and pipeline r
 - **Schedules**: daily weekday pipeline review at 9 AM
 - **3 named views**: active pipeline, needs follow-up, recent interactions
 - **Seed data** with realistic contacts, deals, and interactions
+- **Synapse UI**: pipeline + contacts toggle, slide-over detail panel with view/edit/create modes, contact search, mobile-responsive cards
 
 ## Entity Types
 
@@ -49,10 +50,11 @@ Daily health check of the sales pipeline. Identifies stale deals (no interaction
 ## File Structure
 
 ```
-crm/
+synapse-crm/
 ├── manifest.json
-├── server.py
 ├── context.md
+├── pyproject.toml
+├── Makefile
 ├── schemas/
 │   ├── contact.schema.json
 │   ├── deal.schema.json
@@ -64,17 +66,34 @@ crm/
 │   ├── sample-contacts.json
 │   ├── sample-deals.json
 │   └── sample-interactions.json
-└── tools/
-    ├── __init__.py
-    ├── move_deal_stage.py
-    ├── log_interaction.py
-    ├── pipeline_summary.py
-    └── contact_timeline.py
+├── src/synapse_crm/
+│   ├── __init__.py
+│   ├── server.py
+│   └── tools/
+│       ├── __init__.py
+│       ├── move_deal_stage.py
+│       ├── log_interaction.py
+│       ├── pipeline_summary.py
+│       ├── contact_timeline.py
+│       ├── find_or_create_contact.py
+│       └── link_deals_to_contacts.py
+├── ui/                       # React + Vite + Synapse SDK
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── App.tsx
+│       ├── tokens.ts
+│       ├── components/       # DetailPanel, DealView, ContactView, DealCard, PipelineSummaryBar
+│       ├── views/            # PipelineView, ContactListView
+│       └── hooks/            # useDeals, useContacts, usePipelineSummary
+└── tests/                    # pytest
 ```
 
-## Running the Server
+## Running
 
 ```bash
-uv pip install upjack[mcp]
-python server.py
+make run          # stdio mode for local MCP host development
+make run-http     # HTTP mode on port 8001
+make dev          # vite dev server for the UI
+make bundle       # refresh deps/ snapshot for platform install
 ```

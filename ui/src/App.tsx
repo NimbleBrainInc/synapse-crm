@@ -1,20 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type React from "react";
 import { useTheme, useVisibleState } from "@nimblebrain/synapse/react";
 import { useDeals } from "./hooks/useDeals";
 import { useContacts } from "./hooks/useContacts";
 import { usePipelineSummary } from "./hooks/usePipelineSummary";
-import type { Deal } from "./hooks/useDeals";
-import type { Contact } from "./hooks/useContacts";
+import { useStyleTokens } from "./tokens";
 import { PipelineSummaryBar } from "./components/PipelineSummaryBar";
 import { PipelineView } from "./views/PipelineView";
 import { ContactListView } from "./views/ContactListView";
-import { RelationshipMap } from "./views/RelationshipMap";
-import { DealDetail } from "./components/DealDetail";
-import { ContactDetail } from "./components/ContactDetail";
+import {
+  DetailPanel,
+  usePanelStack,
+  type PanelEntry,
+} from "./components/DetailPanel";
+import { DealView } from "./components/DealView";
+import { ContactView } from "./components/ContactView";
 
 // ---------------------------------------------------------------------------
 // Responsive styles
 // ---------------------------------------------------------------------------
+//
+// Two responsive concerns live here:
+//   1. Pipeline column stacking on narrow viewports.
+//   2. 44px minimum hit-target sizing on mobile (Apple HIG / Material).
+//      Applied via `.crm-touch-target` to interactive elements scattered
+//      across App / DetailPanel / DealView / ContactView. Desktop layout
+//      is unaffected — the rule only fires below 640px.
+//
+// DetailPanel owns the rest of its own responsive chrome.
 
 const RESPONSIVE_STYLES = `
 @media (max-width: 640px) {
@@ -27,10 +40,16 @@ const RESPONSIVE_STYLES = `
     min-width: 0 !important;
     max-width: none !important;
   }
-  .crm-dialog-panel {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    border-radius: 0 !important;
+  .crm-touch-target {
+    min-height: 44px !important;
+    padding-top: 0.6rem !important;
+    padding-bottom: 0.6rem !important;
+  }
+  .crm-touch-target.crm-touch-icon {
+    min-width: 44px !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0 !important;
   }
 }
 `;
@@ -45,23 +64,65 @@ function injectStyles() {
 }
 
 // ---------------------------------------------------------------------------
+// Visible-state summary
+// ---------------------------------------------------------------------------
+
+type ViewMode = "pipeline" | "contacts";
+
+function summarize(
+  view: ViewMode,
+  activeDealCount: number,
+  top: PanelEntry | null,
+): string {
+  const base = `CRM: ${view} view, ${activeDealCount} active deals`;
+  if (!top) return base;
+  switch (top.kind) {
+    case "deal":
+      return `${base}, viewing deal id ${top.id} (mode: ${top.mode})`;
+    case "deal-create":
+      return `${base}, creating new deal`;
+    case "contact":
+      return `${base}, viewing contact id ${top.id} (mode: ${top.mode})`;
+    case "contact-create":
+      return `${base}, creating new contact`;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 
-type ViewMode = "pipeline" | "contacts" | "map";
-
 export default function App() {
   const theme = useTheme();
+  const tokens = useStyleTokens();
   const { deals, dealsByStage, refresh: refreshDeals } = useDeals();
   const { contacts, refresh: refreshContacts } = useContacts();
   const { summary } = usePipelineSummary();
 
   const [activeView, setActiveView] = useState<ViewMode>("pipeline");
-  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const panel = usePanelStack();
 
-  const isDark = theme.mode === "dark";
-  const accentColor = theme.tokens["--color-text-accent"] || "#2563eb";
+  // Per-contact deal aggregates for the contacts table. O(deals) once, O(1)
+  // per row at render time. A deal contributes to count for every
+  // `belongs_to` relationship it has; it contributes its `value` to
+  // `activeValue` only if the deal itself is active and not in a closed_*
+  // stage.
+  const dealsByContact = useMemo(() => {
+    const map = new Map<string, { count: number; activeValue: number }>();
+    for (const deal of deals) {
+      const isActive =
+        deal.status === "active" && !deal.stage.startsWith("closed_");
+      const value = deal.value ?? 0;
+      for (const rel of deal.relationships ?? []) {
+        if (rel.rel !== "belongs_to") continue;
+        const entry = map.get(rel.target) ?? { count: 0, activeValue: 0 };
+        entry.count += 1;
+        if (isActive) entry.activeValue += value;
+        map.set(rel.target, entry);
+      }
+    }
+    return map;
+  }, [deals]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme.mode);
@@ -71,129 +132,191 @@ export default function App() {
     injectStyles();
   }, []);
 
-  // Push visible state to the agent
+  // Push visible state to the agent. IDs only — agent fetches the rest via
+  // tools. Avoid leaking notes / titles / freeform text here.
   const pushState = useVisibleState();
   useEffect(() => {
-    const activeDeals = deals.filter((d) => d.status === "active" && !d.stage.startsWith("closed_"));
+    const activeDealCount = deals.filter(
+      (d) => d.status === "active" && !d.stage.startsWith("closed_"),
+    ).length;
+    const contactCount = contacts.filter((c) => c.status === "active").length;
+    const pipelineValue = summary?.totals.active_value ?? 0;
+    const top = panel.stack[panel.stack.length - 1] ?? null;
     pushState(
       {
         view: activeView,
-        activeDealCount: activeDeals.length,
-        contactCount: contacts.filter((c) => c.status === "active").length,
-        pipelineValue: summary?.totals.active_value ?? 0,
+        activeDealCount,
+        contactCount,
+        pipelineValue,
+        openPanel: top,
+        panelDepth: panel.stack.length,
       },
-      `CRM: ${activeView} view, ${activeDeals.length} active deals`,
+      summarize(activeView, activeDealCount, top),
     );
-  }, [activeView, deals, contacts, summary, pushState]);
+  }, [activeView, deals, contacts, summary, panel.stack, pushState]);
 
   const handleRefresh = () => {
     refreshDeals();
     refreshContacts();
   };
 
-  const border = isDark ? "#2d2d44" : "#e0e0e0";
-
+  // Shared base for the view-toggle buttons. Active state uses
+  // `tokens.accentSoft` to read as a brand-tinted highlight.
   const buttonBase: React.CSSProperties = {
     padding: "0.4rem 1rem",
     fontSize: "0.8rem",
-    border: `1px solid ${isDark ? "#3d3d5c" : "#ccc"}`,
+    border: `1px solid ${tokens.border}`,
     cursor: "pointer",
-    color: isDark ? "#e0e0e0" : "#1a1a2e",
+    color: tokens.fg,
+    fontFamily: tokens.fontFamily,
   };
 
   return (
     <div
       style={{
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontFamily: tokens.fontFamily,
         minHeight: "100vh",
-        background: isDark ? "#1a1a2e" : "#f8f9fa",
-        color: isDark ? "#e0e0e0" : "#1a1a2e",
+        background: tokens.bg,
+        color: tokens.fg,
       }}
     >
-      {/* Pipeline Summary Bar */}
-      <PipelineSummaryBar summary={summary} isDark={isDark} />
+      <PipelineSummaryBar summary={summary} />
 
-      {/* Header with view toggle */}
       <header
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0.6rem 1rem",
-          borderBottom: `1px solid ${border}`,
-          background: isDark ? "#16162a" : "#ffffff",
+          borderBottom: `1px solid ${tokens.border}`,
+          background: tokens.bgRaised,
         }}
       >
         <div style={{ display: "flex", gap: 0 }}>
-          {(["pipeline", "contacts", "map"] as const).map((view, i, arr) => (
-            <button
-              key={view}
-              onClick={() => setActiveView(view)}
-              style={{
-                ...buttonBase,
-                fontWeight: activeView === view ? 600 : 400,
-                borderRadius:
-                  i === 0 ? "6px 0 0 6px" :
-                  i === arr.length - 1 ? "0 6px 6px 0" : "0",
-                background: activeView === view
-                  ? (isDark ? "#2d2d44" : "#e8e8f0")
-                  : (isDark ? "#1a1a2e" : "#fff"),
-                textTransform: "capitalize",
-                marginLeft: i > 0 ? "-1px" : 0,
-              }}
-            >
-              {view === "pipeline" ? "Pipeline" : view === "contacts" ? "Contacts" : "Map"}
-            </button>
-          ))}
+          {(["pipeline", "contacts"] as const).map((view, i, arr) => {
+            const isActive = activeView === view;
+            return (
+              <button
+                key={view}
+                type="button"
+                className="crm-touch-target"
+                onClick={() => setActiveView(view)}
+                style={{
+                  ...buttonBase,
+                  fontWeight: isActive ? 600 : 400,
+                  borderRadius:
+                    i === 0
+                      ? "6px 0 0 6px"
+                      : i === arr.length - 1
+                        ? "0 6px 6px 0"
+                        : "0",
+                  background: isActive ? tokens.accentSoft : tokens.bg,
+                  color: isActive ? tokens.accent : tokens.fg,
+                  borderColor: isActive ? tokens.accent : tokens.border,
+                  textTransform: "capitalize",
+                  marginLeft: i > 0 ? "-1px" : 0,
+                  zIndex: isActive ? 1 : 0,
+                  position: "relative",
+                }}
+              >
+                {view === "pipeline" ? "Pipeline" : "Contacts"}
+              </button>
+            );
+          })}
         </div>
+        <button
+          type="button"
+          className="crm-touch-target"
+          onClick={() =>
+            panel.push({
+              kind: activeView === "pipeline" ? "deal-create" : "contact-create",
+            })
+          }
+          style={{
+            fontFamily: tokens.fontFamily,
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            padding: "0.4rem 0.85rem",
+            borderRadius: "6px",
+            cursor: "pointer",
+            lineHeight: 1.2,
+            border: `1px solid ${tokens.accent}`,
+            background: "transparent",
+            color: tokens.accent,
+          }}
+        >
+          {activeView === "pipeline" ? "+ New Deal" : "+ New Contact"}
+        </button>
       </header>
 
-      {/* Main content */}
       <main>
         {activeView === "pipeline" ? (
           <PipelineView
             dealsByStage={dealsByStage}
-            isDark={isDark}
-            onDealClick={(deal) => setSelectedDeal(deal)}
-          />
-        ) : activeView === "contacts" ? (
-          <ContactListView
-            contacts={contacts}
-            isDark={isDark}
-            onContactClick={(contact) => setSelectedContact(contact)}
+            onDealClick={(deal) =>
+              panel.push({ kind: "deal", id: deal.id, mode: "view" })
+            }
           />
         ) : (
-          <RelationshipMap
+          <ContactListView
             contacts={contacts}
-            deals={deals}
-            isDark={isDark}
-            onContactClick={(contact) => setSelectedContact(contact)}
-            onDealClick={(deal) => setSelectedDeal(deal)}
+            dealsByContact={dealsByContact}
+            onContactClick={(contact) =>
+              panel.push({ kind: "contact", id: contact.id, mode: "view" })
+            }
           />
         )}
       </main>
 
-      {/* Deal detail panel */}
-      {selectedDeal && (
-        <DealDetail
-          deal={selectedDeal}
-          isDark={isDark}
-          accentColor={accentColor}
-          onClose={() => setSelectedDeal(null)}
-          onRefresh={handleRefresh}
-        />
-      )}
-
-      {/* Contact detail panel */}
-      {selectedContact && (
-        <ContactDetail
-          contact={selectedContact}
-          isDark={isDark}
-          accentColor={accentColor}
-          onClose={() => setSelectedContact(null)}
-          onRefresh={handleRefresh}
-        />
-      )}
+      <DetailPanel
+        controller={panel}
+        renderEntry={(entry, ctrl) => {
+          switch (entry.kind) {
+            case "deal":
+              return (
+                <DealView
+                  dealId={entry.id}
+                  mode={entry.mode}
+                  controller={ctrl}
+                  onChanged={handleRefresh}
+                />
+              );
+            case "deal-create":
+              return (
+                <DealView
+                  dealId={null}
+                  mode="create"
+                  controller={ctrl}
+                  onChanged={handleRefresh}
+                />
+              );
+            case "contact":
+              return (
+                <ContactView
+                  contactId={entry.id}
+                  mode={entry.mode}
+                  controller={ctrl}
+                  onChanged={handleRefresh}
+                />
+              );
+            case "contact-create":
+              return (
+                <ContactView
+                  contactId={null}
+                  mode="create"
+                  controller={ctrl}
+                  onChanged={handleRefresh}
+                />
+              );
+            default: {
+              // Exhaustiveness check — adding a new PanelEntry kind without
+              // wiring a case here is a TypeScript compile error.
+              const _exhaustive: never = entry;
+              return _exhaustive;
+            }
+          }
+        }}
+      />
     </div>
   );
 }

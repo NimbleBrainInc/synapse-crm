@@ -50,18 +50,29 @@ async def _call_tool(mcp, name: str, arguments: dict | None = None) -> Any:
 
 
 @pytest.fixture
-def mcp(tmp_path, monkeypatch):
-    """Build the CRM server against a per-test workspace.
+def server_module(tmp_path, monkeypatch):
+    """Reload ``synapse_crm.server`` against an isolated per-test workspace.
 
     ``UPJACK_ROOT`` takes priority over the ``root`` argument passed to
     ``create_server`` (see ``upjack.paths.resolve_root``), so setting it
-    before reloading ``synapse_crm.server`` is enough to isolate the
-    workspace. Reload is required because the module captures ``mcp`` and
-    ``_app`` at import time.
+    before reloading is enough to isolate the workspace. Reload is required
+    because the module captures ``mcp`` and ``_app`` at import time.
     """
     monkeypatch.setenv("UPJACK_ROOT", str(tmp_path))
 
-    import synapse_crm.server as server_module
+    import synapse_crm.server as module
 
-    importlib.reload(server_module)
+    importlib.reload(module)
+    return module
+
+
+@pytest.fixture
+def mcp(server_module):
+    """The reloaded FastMCP server, bound to the per-test workspace."""
     return server_module.mcp
+
+
+@pytest.fixture
+def app(server_module):
+    """The reloaded ``UpjackApp`` instance, bound to the per-test workspace."""
+    return server_module._app

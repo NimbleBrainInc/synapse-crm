@@ -43,7 +43,7 @@ lead → qualified → proposal → negotiation → closed_won
 ## Adding a Lead
 
 When a user says "add a lead" or "new lead", this means TWO things:
-1. **Create a contact** (the person) with `create_contact`
+1. **Resolve the contact** with `find_or_create_contact` — it dedupes by email/name and returns either the existing record or a new one
 2. **Create a deal** in the `lead` stage linked to that contact with `create_deal`, including `relationships: [{ "rel": "belongs_to", "target": "<contact_id>" }]` and `contact_name` denormalized
 
 Always do both steps. A contact without a deal won't appear in the pipeline.
