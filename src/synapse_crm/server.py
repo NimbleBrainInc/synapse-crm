@@ -4,6 +4,7 @@ Tier 2: Auto-generated entity CRUD from manifest (contacts, deals, interactions)
 Tier 3: Custom domain tools for pipeline management and interaction tracking.
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -11,6 +12,9 @@ from upjack.app import UpjackApp
 from upjack.server import create_server
 
 from synapse_crm.tools import register_tools
+from synapse_crm.tools.link_deals_to_contacts import link_deals_to_contacts
+
+logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
 manifest_path = _PROJECT_ROOT / "manifest.json"
@@ -33,6 +37,21 @@ _app = UpjackApp.from_manifest(manifest_path, root=workspace_root)
 
 # Register custom domain tools
 register_tools(mcp, _app)
+
+# Startup hook: idempotently backfill ``belongs_to`` edges from ``deal.contact_name``
+# so seeded deals show up under their contacts immediately. Re-running is a no-op
+# because ``link_deals_to_contacts`` skips deals that already have a ``belongs_to``.
+# Wrapped in try/except so a transient storage error does not prevent the server
+# from starting — the tool is still callable on demand via MCP.
+try:
+    _link_result = link_deals_to_contacts(_app)
+    logger.info(
+        "link_deals_to_contacts startup: linked=%d skipped=%d",
+        _link_result.get("linked", 0),
+        _link_result.get("skipped", 0),
+    )
+except Exception:
+    logger.exception("link_deals_to_contacts startup hook failed; continuing")
 
 # UI resource — served to the platform as an iframe
 _UI_HTML = _PROJECT_ROOT / "ui" / "dist" / "index.html"

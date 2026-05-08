@@ -1,4 +1,5 @@
 import type { PipelineSummaryData } from "../hooks/usePipelineSummary";
+import { useStyleTokens } from "../tokens";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -11,18 +12,13 @@ function formatCurrency(value: number): string {
 
 export function PipelineSummaryBar({
   summary,
-  isDark,
 }: {
   summary: PipelineSummaryData | null;
-  isDark: boolean;
 }) {
+  const tokens = useStyleTokens();
   if (!summary) return null;
 
   const { totals } = summary;
-  const bg = isDark ? "#16162a" : "#ffffff";
-  const border = isDark ? "#2d2d44" : "#e0e0e0";
-  const muted = isDark ? "#888" : "#666";
-  const accent = isDark ? "#93c5fd" : "#2563eb";
 
   const metrics = [
     { label: "Active Deals", value: String(totals.active_deals) },
@@ -40,17 +36,17 @@ export function PipelineSummaryBar({
         display: "flex",
         gap: "1.5rem",
         padding: "0.75rem 1rem",
-        background: bg,
-        borderBottom: `1px solid ${border}`,
+        background: tokens.bgRaised,
+        borderBottom: `1px solid ${tokens.border}`,
         flexWrap: "wrap",
       }}
     >
       {metrics.map((m) => (
         <div key={m.label} style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-          <span style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.05em", color: muted }}>
+          <span style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.05em", color: tokens.fgMuted }}>
             {m.label}
           </span>
-          <span style={{ fontSize: "1.1rem", fontWeight: 700, color: accent }}>
+          <span style={{ fontSize: "1.1rem", fontWeight: 700, color: tokens.accent }}>
             {m.value}
           </span>
         </div>
