@@ -12,9 +12,9 @@
       "maxLength": 256
     },
     "value": {
-      "type": "number",
+      "type": ["number", "null"],
       "minimum": 0,
-      "description": "Dollar value of the deal"
+      "description": "Dollar value of the deal. Null clears any prior value."
     },
     "stage": {
       "type": "string",
@@ -23,15 +23,15 @@
       "description": "Current pipeline stage"
     },
     "close_date": {
-      "type": "string",
+      "type": ["string", "null"],
       "format": "date",
-      "description": "Expected or actual close date (ISO YYYY-MM-DD)"
+      "description": "Expected or actual close date (ISO YYYY-MM-DD). Null clears the date."
     },
     "probability": {
-      "type": "integer",
+      "type": ["integer", "null"],
       "minimum": 0,
       "maximum": 100,
-      "description": "Win probability as a percentage (0-100)"
+      "description": "Win probability as a percentage (0-100). Null clears the probability."
     },
     "contact_name": {
       "type": "string",

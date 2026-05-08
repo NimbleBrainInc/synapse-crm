@@ -60,6 +60,28 @@ function parseNumber(s: string): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/**
+ * Coerce a tool-call error envelope into a readable string. Servers may return
+ * structured errors ({error}, {message}, etc.); avoid the "[object Object]"
+ * fallback that String(...) on an object would produce.
+ */
+function formatToolError(data: unknown, fallback = "Request failed"): string {
+  if (data == null) return fallback;
+  if (typeof data === "string") return data;
+  if (typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj.error === "string") return obj.error;
+    if (typeof obj.message === "string") return obj.message;
+    if (typeof obj.detail === "string") return obj.detail;
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return fallback;
+    }
+  }
+  return String(data);
+}
+
 // ---------------------------------------------------------------------------
 // DealView
 // ---------------------------------------------------------------------------
@@ -110,7 +132,7 @@ export function DealView({
         Deal
       >("get_deal", { deal_id: dealId });
       if (result.isError) {
-        setFetchError(String(result.data));
+        setFetchError(formatToolError(result.data, "Failed to load deal"));
         setDeal(null);
         return;
       }
@@ -217,7 +239,7 @@ export function DealView({
           stage: newStage,
         });
         if (result.isError) {
-          setFetchError(String(result.data));
+          setFetchError(formatToolError(result.data, "Failed to move stage"));
           return;
         }
         onChanged();
@@ -246,25 +268,36 @@ export function DealView({
     setSubmitting(true);
     setSubmitError(null);
     try {
-      // Send only fields that actually changed — undefined keys are dropped
-      // by the Upjack update tool's merge semantics on the server side, but
-      // we strip them client-side too so the request is as small as possible
-      // and to keep "no-op save" actually be a no-op on the server.
+      // Send only fields that actually changed. For numeric/date fields, an
+      // empty input string after a stored value means "clear it" — we send
+      // `null` explicitly so the entity field is overwritten (the schema
+      // admits null for value/probability/close_date). Without this, the
+      // payload value would be `undefined`, which JSON.stringify drops, and
+      // the merge on the server would silently keep the old value.
       const payload: Record<string, unknown> = { deal_id: deal.id };
       if (title !== (deal.title ?? "")) payload.title = title.trim();
+
       const newValue = parseNumber(valueStr);
-      const oldValue = deal.value;
-      if (newValue !== oldValue) payload.value = newValue;
+      const oldValue = deal.value ?? undefined;
+      if (newValue !== oldValue) {
+        payload.value = newValue === undefined ? null : newValue;
+      }
+
       const newProb = parseNumber(probabilityStr);
-      const oldProb = deal.probability;
-      if (newProb !== oldProb) payload.probability = newProb;
-      const newDate = closeDate.trim() === "" ? undefined : closeDate;
-      const oldDate = deal.close_date;
-      if (newDate !== oldDate) payload.close_date = newDate;
+      const oldProb = deal.probability ?? undefined;
+      if (newProb !== oldProb) {
+        payload.probability = newProb === undefined ? null : newProb;
+      }
+
+      const newDate = closeDate.trim() === "" ? undefined : closeDate.trim();
+      const oldDate = deal.close_date ?? undefined;
+      if (newDate !== oldDate) {
+        payload.close_date = newDate === undefined ? null : newDate;
+      }
 
       const result = await synapse.callTool("update_deal", payload);
       if (result.isError) {
-        setSubmitError(String(result.data));
+        setSubmitError(formatToolError(result.data, "Failed to save deal"));
         return;
       }
       onChanged();
@@ -321,7 +354,7 @@ export function DealView({
         payload,
       );
       if (result.isError) {
-        setSubmitError(String(result.data));
+        setSubmitError(formatToolError(result.data, "Failed to create deal"));
         return;
       }
       const created = result.data as Deal | null;
@@ -870,15 +903,30 @@ export function DealView({
           }}
         >
           <div>
-            <label style={labelStyle}>Contact</label>
+            <label style={labelStyle}>
+              Contact{" "}
+              <span
+                style={{
+                  fontWeight: 400,
+                  textTransform: "none",
+                  letterSpacing: 0,
+                  color: tokens.fgFaint,
+                  fontSize: "0.7rem",
+                }}
+              >
+                (read-only)
+              </span>
+            </label>
             <div
               style={{
                 fontSize: "0.85rem",
                 color: tokens.fgMuted,
                 padding: "0.5rem 0",
+                fontStyle: "italic",
               }}
+              title="To re-link a deal to a different contact, use the agent."
             >
-              {deal.contact_name || "--"}
+              {deal.contact_name || "—"}
             </div>
           </div>
           <div>

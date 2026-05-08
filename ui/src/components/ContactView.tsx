@@ -66,6 +66,28 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+/**
+ * Coerce a tool-call error envelope into a readable string. Servers may
+ * return structured errors ({error}, {message}, etc.); avoid the
+ * "[object Object]" fallback that String(...) on an object would produce.
+ */
+function formatToolError(data: unknown, fallback = "Request failed"): string {
+  if (data == null) return fallback;
+  if (typeof data === "string") return data;
+  if (typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (typeof obj.error === "string") return obj.error;
+    if (typeof obj.message === "string") return obj.message;
+    if (typeof obj.detail === "string") return obj.detail;
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return fallback;
+    }
+  }
+  return String(data);
+}
+
 // ---------------------------------------------------------------------------
 // Edit form state
 // ---------------------------------------------------------------------------
@@ -152,35 +174,43 @@ export function ContactView({
   );
   const [timelineError, setTimelineError] = useState<string | null>(null);
 
-  const fetchSeqRef = useRef(0);
+  // Per-load seq counters. Each load guards against its own out-of-order
+  // resolution: if the panel switches contactId mid-flight, the earlier
+  // call's seq mismatches the current and the result is dropped. We use
+  // separate counters (not one shared) so that three concurrent loads of
+  // the *same* contact don't invalidate each other.
+  const contactSeqRef = useRef(0);
+  const dealsSeqRef = useRef(0);
+  const timelineSeqRef = useRef(0);
 
   const loadContact = useCallback(async () => {
     if (!contactId) return;
-    const seq = ++fetchSeqRef.current;
+    const seq = ++contactSeqRef.current;
     setLoadingContact(true);
     setContactError(null);
     try {
       const result = await synapse.callTool("get_contact", {
         contact_id: contactId,
       });
-      if (seq !== fetchSeqRef.current) return;
+      if (seq !== contactSeqRef.current) return;
       if (result.isError) {
-        setContactError(String(result.data));
+        setContactError(formatToolError(result.data, "Failed to load contact"));
       } else {
         setContact(result.data as Contact);
       }
     } catch (err) {
-      if (seq !== fetchSeqRef.current) return;
+      if (seq !== contactSeqRef.current) return;
       setContactError(
         err instanceof Error ? err.message : "Failed to load contact",
       );
     } finally {
-      if (seq === fetchSeqRef.current) setLoadingContact(false);
+      if (seq === contactSeqRef.current) setLoadingContact(false);
     }
   }, [synapse, contactId]);
 
   const loadDeals = useCallback(async () => {
     if (!contactId) return;
+    const seq = ++dealsSeqRef.current;
     setLoadingDeals(true);
     setDealsError(null);
     try {
@@ -188,44 +218,51 @@ export function ContactView({
         rel: "belongs_to",
         target_id: contactId,
       });
+      if (seq !== dealsSeqRef.current) return;
       if (result.isError) {
-        setDealsError(String(result.data));
+        setDealsError(formatToolError(result.data, "Failed to load deals"));
         setDeals([]);
         return;
       }
       const raw = result.data as { entities?: Deal[] } | Deal[];
       setDeals(Array.isArray(raw) ? raw : (raw?.entities ?? []));
     } catch (err) {
+      if (seq !== dealsSeqRef.current) return;
       setDealsError(
         err instanceof Error ? err.message : "Failed to load deals",
       );
       setDeals([]);
     } finally {
-      setLoadingDeals(false);
+      if (seq === dealsSeqRef.current) setLoadingDeals(false);
     }
   }, [synapse, contactId]);
 
   const loadTimeline = useCallback(async () => {
     if (!contactId) return;
+    const seq = ++timelineSeqRef.current;
     setLoadingTimeline(true);
     setTimelineError(null);
     try {
       const result = await synapse.callTool("contact_timeline", {
         contact_id: contactId,
       });
+      if (seq !== timelineSeqRef.current) return;
       if (result.isError) {
-        setTimelineError(String(result.data));
+        setTimelineError(
+          formatToolError(result.data, "Failed to load timeline"),
+        );
         setTimeline(null);
         return;
       }
       setTimeline(result.data as TimelineData);
     } catch (err) {
+      if (seq !== timelineSeqRef.current) return;
       setTimelineError(
         err instanceof Error ? err.message : "Failed to load timeline",
       );
       setTimeline(null);
     } finally {
-      setLoadingTimeline(false);
+      if (seq === timelineSeqRef.current) setLoadingTimeline(false);
     }
   }, [synapse, contactId]);
 
@@ -328,7 +365,7 @@ export function ContactView({
 
       const result = await synapse.callTool("update_contact", payload);
       if (result.isError) {
-        setSaveError(String(result.data));
+        setSaveError(formatToolError(result.data, "Failed to update contact"));
         return;
       }
       onChanged();
@@ -363,7 +400,7 @@ export function ContactView({
         payload,
       );
       if (result.isError) {
-        setSaveError(String(result.data));
+        setSaveError(formatToolError(result.data, "Failed to create contact"));
         return;
       }
       const created = result.data as Contact | { id?: string };
@@ -433,7 +470,7 @@ export function ContactView({
         follow_up_date: logFollowUp,
       });
       if (result.isError) {
-        setLogError(String(result.data));
+        setLogError(formatToolError(result.data, "Failed to log interaction"));
       } else {
         setShowLogForm(false);
         setLogSummary("");
