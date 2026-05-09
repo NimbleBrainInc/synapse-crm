@@ -40,8 +40,7 @@ jobs:
           VERSION="${{ github.event.release.tag_name }}"
           VERSION="${VERSION#v}"
           jq --arg v "$VERSION" '.version = $v' manifest.json > manifest.tmp.json && mv manifest.tmp.json manifest.json
-          jq --arg v "$VERSION" '.version = $v' server.json > server.tmp.json && mv server.tmp.json server.json
 
-      - uses: NimbleBrainInc/mcpb-pack@v2
+      - uses: NimbleBrainInc/mcpb-pack@v3
         with:
           output: "{name}-{version}-${{ matrix.os }}-${{ matrix.arch }}.mcpb"
