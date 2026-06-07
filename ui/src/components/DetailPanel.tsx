@@ -156,12 +156,10 @@ export function DetailPanel({
     [setHeader, clearHeader],
   );
 
-  // Clear header whenever the top entry changes (push / pop / replaceTop). The
-  // new body's effect refills it — a one-frame blank rather than a stale flash.
-  const topKey = top ? entryKey(top) : null;
-  useEffect(() => {
-    setHeaderState({});
-  }, [topKey]);
+  // The body owns the header: its usePanelHeader effect sets title/actions on
+  // mount and clears on unmount. (We deliberately don't clear here on entry
+  // change — a parent clear effect runs AFTER the child's set effect and would
+  // clobber the freshly-registered title, blanking the header.)
 
   if (!isOpen || !top) return null;
 
@@ -233,19 +231,4 @@ export function DetailPanel({
       </Drawer.Body>
     </Drawer>
   );
-}
-
-// Stable identity key for a stack entry, used as a useEffect dep so we can
-// reset header state precisely when the *top* entry changes.
-function entryKey(entry: PanelEntry): string {
-  switch (entry.kind) {
-    case "deal":
-      return `deal:${entry.id}:${entry.mode}`;
-    case "contact":
-      return `contact:${entry.id}:${entry.mode}`;
-    case "deal-create":
-      return "deal-create";
-    case "contact-create":
-      return "contact-create";
-  }
 }
