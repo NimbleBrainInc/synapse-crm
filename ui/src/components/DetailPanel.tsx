@@ -1,5 +1,5 @@
 import { Drawer } from "@nimblebrain/synapse/ui";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { useStyleTokens } from "../tokens";
 
@@ -161,6 +161,15 @@ export function DetailPanel({
   // change — a parent clear effect runs AFTER the child's set effect and would
   // clobber the freshly-registered title, blanking the header.)
 
+  // Move focus to the panel content on open and whenever the top entry changes
+  // (nested push/pop). The Drawer handles focus on open/close, but a nested
+  // push (deal → contact) keeps the same dialog open, so we re-focus here to
+  // carry keyboard users to the new panel — parity with the pre-Drawer panel.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bodyRef.current?.focus();
+  }, [stack.length]);
+
   if (!isOpen || !top) return null;
 
   const body = renderEntry(top, controller);
@@ -227,7 +236,9 @@ export function DetailPanel({
         </div>
       </Drawer.Header>
       <Drawer.Body>
-        <PanelHeaderContext.Provider value={headerCtx}>{body}</PanelHeaderContext.Provider>
+        <div ref={bodyRef} tabIndex={-1} style={{ outline: "none" }}>
+          <PanelHeaderContext.Provider value={headerCtx}>{body}</PanelHeaderContext.Provider>
+        </div>
       </Drawer.Body>
     </Drawer>
   );
