@@ -1,10 +1,13 @@
 import {
   type Column,
   EmptyState,
+  ListRow,
   SearchField,
+  Stack,
   Table,
   Text,
   tokens,
+  useBreakpoint,
 } from "@nimblebrain/synapse/ui";
 import { useMemo, useState } from "react";
 import type { Contact } from "../hooks/useContacts";
@@ -101,12 +104,25 @@ export function ContactListView({
     {
       key: "source",
       header: "Source",
-      render: (c) => SOURCE_LABELS[c.lead_source ?? "other"] ?? "—",
+      render: (c) => (c.lead_source ? (SOURCE_LABELS[c.lead_source] ?? <Dash />) : <Dash />),
     },
   ];
 
+  // Container-width breakpoint (not viewport): the app renders in an iframe pane
+  // the host sizes, so a 6-column table would horizontally-scroll on a phone.
+  // Below 640px we fall back to a stacked card list with comfortable tap targets.
+  const { ref, isNarrow } = useBreakpoint<HTMLDivElement>(640);
+
+  const emptyState = (
+    <EmptyState
+      title={q ? "No matches" : "No contacts"}
+      description={q ? `No contacts match "${query}".` : "Contacts will appear here."}
+    />
+  );
+
   return (
     <div
+      ref={ref}
       style={{
         padding: "1rem",
         display: "flex",
@@ -123,28 +139,71 @@ export function ContactListView({
         onChange={(e) => setQuery(e.target.value)}
         style={{ maxWidth: 420 }}
       />
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflow: "auto",
-          border: `1px solid ${tokens.border}`,
-          borderRadius: tokens.radiusMd,
-        }}
-      >
-        <Table
-          data={filtered}
-          columns={columns}
-          rowKey={(c) => c.id}
-          onRowClick={onContactClick}
-          empty={
-            <EmptyState
-              title={q ? "No matches" : "No contacts"}
-              description={q ? "Try a different search." : "Contacts will appear here."}
-            />
-          }
-        />
-      </div>
+      {isNarrow ? (
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {filtered.length === 0 ? (
+            emptyState
+          ) : (
+            <Stack gap="0.5rem">
+              {filtered.map((c) => {
+                const d = dealsByContact.get(c.id);
+                const parts = [c.company, c.role].filter(
+                  (p): p is string => !!p && p.trim() !== "",
+                );
+                return (
+                  <ListRow
+                    key={c.id}
+                    interactive
+                    onClick={() => onContactClick(c)}
+                    title={
+                      <Text size="sm" weight="medium">
+                        {c.name}
+                      </Text>
+                    }
+                    meta={
+                      <Stack gap="0.1rem">
+                        <Text size="sm" tone={parts.length ? "muted" : "faint"}>
+                          {parts.length ? parts.join(" · ") : "—"}
+                        </Text>
+                        <Text size="sm" tone="muted">
+                          {c.email || "—"}
+                        </Text>
+                      </Stack>
+                    }
+                    trailing={
+                      <DealsCell count={d?.count ?? 0} activeValue={d?.activeValue ?? 0} />
+                    }
+                    style={{
+                      minHeight: 44,
+                      border: `1px solid ${tokens.border}`,
+                      borderRadius: tokens.radiusMd,
+                      background: tokens.bgRaised,
+                    }}
+                  />
+                );
+              })}
+            </Stack>
+          )}
+        </div>
+      ) : (
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "auto",
+            border: `1px solid ${tokens.border}`,
+            borderRadius: tokens.radiusMd,
+          }}
+        >
+          <Table
+            data={filtered}
+            columns={columns}
+            rowKey={(c) => c.id}
+            onRowClick={onContactClick}
+            empty={emptyState}
+          />
+        </div>
+      )}
     </div>
   );
 }

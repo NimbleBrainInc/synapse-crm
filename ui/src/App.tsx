@@ -24,10 +24,12 @@ import { ContactView } from "./components/ContactView";
 //   1. Pipeline column stacking on narrow viewports.
 //   2. 44px minimum hit-target sizing on mobile (Apple HIG / Material).
 //      Applied via `.crm-touch-target` to interactive elements scattered
-//      across App / DetailPanel / DealView / ContactView. Desktop layout
-//      is unaffected — the rule only fires below 640px.
+//      across App / DealView / ContactView. Desktop layout is unaffected —
+//      the rule only fires below 640px.
 //
-// DetailPanel owns the rest of its own responsive chrome.
+// The detail panel is now the shared `@nimblebrain/synapse/ui` Drawer — a
+// full-height right side-sheet (92% width on mobile) that owns its own chrome.
+// ContactListView swaps to a stacked card list below 640px via `useBreakpoint`.
 
 const RESPONSIVE_STYLES = `
 @media (max-width: 640px) {
