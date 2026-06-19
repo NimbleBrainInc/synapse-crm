@@ -1,7 +1,6 @@
 import { Drawer } from "@nimblebrain/synapse/ui";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
-import { useStyleTokens } from "../tokens";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -142,7 +141,6 @@ export function DetailPanel({
   controller,
   renderEntry,
 }: DetailPanelProps): React.ReactElement | null {
-  const tokens = useStyleTokens();
   const { stack } = controller;
   const isOpen = stack.length > 0;
   const top = stack[stack.length - 1];
@@ -170,6 +168,20 @@ export function DetailPanel({
     bodyRef.current?.focus();
   }, [stack.length]);
 
+  // On a coarse (touch) pointer, present the panel as a bottom sheet. Keyed to
+  // input modality, not viewport width — the Drawer's own touch-target sizing
+  // follows the same rule.
+  const [isCoarse, setIsCoarse] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia("(pointer: coarse)");
+    const onChange = () => setIsCoarse(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
   if (!isOpen || !top) return null;
 
   const body = renderEntry(top, controller);
@@ -181,60 +193,15 @@ export function DetailPanel({
       open
       onClose={() => controller.close()}
       onEscape={() => (controller.stack.length > 1 ? controller.pop() : controller.close())}
-      side="right"
+      side={isCoarse ? "bottom" : "right"}
       width={480}
-      aria-label={headerTitle}
     >
-      <Drawer.Header onClose={() => controller.close()}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
-          {depth > 1 && (
-            <button
-              type="button"
-              aria-label="Back"
-              onClick={() => controller.pop()}
-              style={{
-                flexShrink: 0,
-                background: "none",
-                border: `1px solid ${tokens.border}`,
-                borderRadius: "4px",
-                width: 28,
-                height: 28,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                color: tokens.fgMuted,
-                fontFamily: tokens.fontFamily,
-                fontSize: "1rem",
-                lineHeight: 1,
-              }}
-            >
-              {"‹"}
-            </button>
-          )}
-          <span
-            style={{
-              flex: 1,
-              minWidth: 0,
-              fontWeight: 600,
-              color: tokens.fg,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-            title={headerTitle}
-          >
-            {headerTitle}
-          </span>
-          {header.actions && (
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}
-            >
-              {header.actions}
-            </div>
-          )}
-        </div>
-      </Drawer.Header>
+      <Drawer.Header
+        title={headerTitle}
+        onBack={depth > 1 ? () => controller.pop() : undefined}
+        actions={header.actions}
+        onClose={() => controller.close()}
+      />
       <Drawer.Body>
         <div ref={bodyRef} tabIndex={-1} style={{ outline: "none" }}>
           <PanelHeaderContext.Provider value={headerCtx}>{body}</PanelHeaderContext.Provider>
