@@ -1,56 +1,54 @@
-import { useTheme } from "@nimblebrain/synapse/react";
+import { tokens as ui } from "@nimblebrain/synapse/ui";
 
+/**
+ * CRM token shape, now backed by the shared `@nimblebrain/synapse/ui` token
+ * contract instead of a per-app fallback table. `useStyleTokens()` keeps its
+ * old signature so the rest of the app is unchanged — but every value is now a
+ * `var(--token, neutral-fallback)` from the library, so the host's injected
+ * brand theme drives the whole app and light/dark resolve via CSS.
+ */
 export interface ResolvedTokens {
-  // Backgrounds
-  bg: string;          // page background
-  bgRaised: string;    // card/panel background
-  bgSubtle: string;    // input / muted area
-  bgHover: string;     // hover row / button hover
-  // Foreground
-  fg: string;          // primary text
-  fgMuted: string;     // labels, secondary text
-  fgFaint: string;     // disabled / placeholder
-  // Border
+  bg: string;
+  bgRaised: string;
+  bgSubtle: string;
+  bgHover: string;
+  fg: string;
+  fgMuted: string;
+  fgFaint: string;
   border: string;
   borderStrong: string;
-  // Brand
-  accent: string;        // primary action / focused state
-  accentSoft: string;    // 10% accent for subtle backgrounds
-  accentText: string;    // text/icon over accent fills
-  // Stage palette (kept domain-specific for now — not platform tokens)
-  // — STAGE_COLORS continues to live in useDeals.ts
-  // Typography
+  accent: string;
+  accentSoft: string;
+  accentText: string;
   fontFamily: string;
   fontMono: string;
-  // Status
   danger: string;
   dangerSoft: string;
   success: string;
 }
 
+// Static var()-based mapping. No `useTheme` needed — the host swaps the CSS
+// variables and every `var()` re-resolves without a React re-render.
+const RESOLVED: ResolvedTokens = {
+  bg: ui.bg,
+  bgRaised: ui.bgRaised,
+  bgSubtle: ui.bgSubtle,
+  bgHover: ui.bgSubtle,
+  fg: ui.fg,
+  fgMuted: ui.fgMuted,
+  fgFaint: ui.fgFaint,
+  border: ui.border,
+  borderStrong: ui.borderStrong,
+  accent: ui.accent,
+  accentSoft: ui.infoLight,
+  accentText: ui.accentFg,
+  fontFamily: ui.fontSans,
+  fontMono: ui.fontMono,
+  danger: ui.danger,
+  dangerSoft: `color-mix(in oklab, ${ui.danger} 14%, transparent)`,
+  success: ui.success,
+};
+
 export function useStyleTokens(): ResolvedTokens {
-  const theme = useTheme();
-  const isDark = theme.mode === "dark";
-  const t = theme.tokens;
-  // Keys are the canonical platform tokens. Fallbacks chosen to match
-  // the host's actual light/dark themes (not arbitrary hex).
-  return {
-    bg:           t["--color-background-primary"]   ?? (isDark ? "#0f1117" : "#ffffff"),
-    bgRaised:     t["--color-background-secondary"] ?? (isDark ? "#1a1d27" : "#fafafa"),
-    bgSubtle:     t["--color-background-tertiary"]  ?? (isDark ? "#22262f" : "#f3f4f6"),
-    bgHover:      t["--color-background-hover"]     ?? (isDark ? "#22262f" : "#f3f4f6"),
-    fg:           t["--color-text-primary"]         ?? (isDark ? "#e5e7eb" : "#111827"),
-    fgMuted:      t["--color-text-secondary"]       ?? (isDark ? "#9ca3af" : "#6b7280"),
-    fgFaint:      t["--color-text-tertiary"]        ?? (isDark ? "#6b7280" : "#9ca3af"),
-    border:       t["--color-border-primary"]       ?? (isDark ? "#2d3340" : "#e5e7eb"),
-    borderStrong: t["--color-border-secondary"]     ?? (isDark ? "#3f4754" : "#d1d5db"),
-    accent:       t["--color-text-accent"]          ?? "#2563eb",
-    accentSoft:   t["--color-background-accent"]    ?? (isDark ? "rgba(37,99,235,0.18)" : "rgba(37,99,235,0.10)"),
-    accentText:   t["--color-text-on-accent"]       ?? "#ffffff",
-    fontFamily:   t["--font-sans"]                  ?? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    fontMono:     t["--font-mono"]                  ?? "ui-monospace, SFMono-Regular, Menlo, monospace",
-    danger:       t["--color-text-danger"]          ?? "#dc2626",
-    dangerSoft:   t["--color-background-danger"]    ?? (isDark ? "rgba(220,38,38,0.18)" : "rgba(220,38,38,0.10)"),
-    success:      t["--color-text-success"]         ?? "#10b981",
-  };
+  return RESOLVED;
 }

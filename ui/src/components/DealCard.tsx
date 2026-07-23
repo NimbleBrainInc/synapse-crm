@@ -1,6 +1,6 @@
+import { Card, Inline, Text } from "@nimblebrain/synapse/ui";
 import type { Deal } from "../hooks/useDeals";
 import { STAGE_COLORS } from "../hooks/useDeals";
-import { useStyleTokens } from "../tokens";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -24,47 +24,35 @@ export function DealCard({
   deal: Deal;
   onClick: () => void;
 }) {
-  const tokens = useStyleTokens();
   const days = daysInStage(deal.updated_at);
   const stageColor = STAGE_COLORS[deal.stage] || "#6B7280";
 
+  // The library `Card` brings the surface, hairline border, radius, and a real
+  // token-driven hover lift (replacing the hand-rolled rgba shadow). The stage
+  // accent stripe is a domain detail layered on via `style`.
   return (
-    <div
+    <Card
+      interactive
       onClick={onClick}
-      style={{
-        padding: "0.75rem",
-        borderRadius: "8px",
-        border: `1px solid ${tokens.borderStrong}`,
-        borderLeft: `3px solid ${stageColor}`,
-        background: tokens.bgRaised,
-        cursor: "pointer",
-        transition: "box-shadow 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        // Hover shadow uses raw rgba — shadows are not theme-tokenable today.
-        (e.currentTarget as HTMLDivElement).style.boxShadow =
-          "0 2px 8px rgba(0,0,0,0.2)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-      }}
+      padding="0.75rem"
+      style={{ borderLeft: `3px solid ${stageColor}` }}
     >
-      <div style={{ fontWeight: 600, fontSize: "0.85rem", marginBottom: "0.35rem" }}>
+      <Text weight="semibold" size="sm" style={{ display: "block", marginBottom: "0.35rem" }}>
         {deal.title}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      </Text>
+      <Inline justify="between">
         <span style={{ fontSize: "0.9rem", fontWeight: 700, color: stageColor }}>
           {deal.value ? formatCurrency(deal.value) : "--"}
         </span>
-        <span style={{ fontSize: "0.7rem", color: tokens.fgMuted }}>
+        <Text size="xs" tone="muted">
           {days}d in stage
-        </span>
-      </div>
+        </Text>
+      </Inline>
       {deal.contact_name && (
-        <div style={{ fontSize: "0.75rem", color: tokens.fgMuted, marginTop: "0.25rem" }}>
+        <Text size="xs" tone="muted" style={{ display: "block", marginTop: "0.25rem" }}>
           {deal.contact_name}
-        </div>
+        </Text>
       )}
-    </div>
+    </Card>
   );
 }

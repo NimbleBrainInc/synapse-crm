@@ -1,6 +1,16 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  type Column,
+  EmptyState,
+  ListRow,
+  SearchField,
+  Stack,
+  Table,
+  Text,
+  tokens,
+  useBreakpoint,
+} from "@nimblebrain/synapse/ui";
+import { useMemo, useState } from "react";
 import type { Contact } from "../hooks/useContacts";
-import { useStyleTokens } from "../tokens";
 
 const SOURCE_LABELS: Record<string, string> = {
   referral: "Referral",
@@ -10,65 +20,39 @@ const SOURCE_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-// Inline currency formatter — matches existing `formatCurrency` patterns used
-// in sibling views (no decimals; "$" prefix). Local to this view; lift to a
-// shared util if a third caller appears.
-const CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
+const CURRENCY = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
   maximumFractionDigits: 0,
 });
 
-function formatCurrency(value: number): string {
-  return CURRENCY_FORMATTER.format(value);
+type DealsByContact = Map<string, { count: number; activeValue: number }>;
+
+function Dash() {
+  return (
+    <Text size="sm" tone="faint">
+      —
+    </Text>
+  );
 }
 
-// Inline mobile detection. matchMedia + listener; only ContactListView uses
-// this today. Promote to a shared hook if a second view picks it up.
-function useIsMobile(): boolean {
-  const [isMobile, setIsMobile] = useState<boolean>(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return false;
-    return window.matchMedia("(max-width: 640px)").matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mql = window.matchMedia("(max-width: 640px)");
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    // Sync once in case viewport changed between render and effect.
-    setIsMobile(mql.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
-
-  return isMobile;
-}
-
-// Shared three-state deals rendering: 0 / active>0 / all-closed.
-function renderDealsCell(
-  count: number,
-  activeValue: number,
-  tokens: ReturnType<typeof useStyleTokens>,
-): ReactNode {
-  if (count === 0) {
-    return <span style={{ color: tokens.fgFaint }}>—</span>;
-  }
+/** Deals summary: 0 / active>0 (count · value) / all-closed (count · closed). */
+function DealsCell({ count, activeValue }: { count: number; activeValue: number }) {
+  if (count === 0) return <Dash />;
   if (activeValue > 0) {
     return (
-      <span>
-        {count}
-        {" · "}
+      <Text size="sm">
+        {count} ·{" "}
         <span style={{ color: tokens.accent, fontWeight: 600 }}>
-          {formatCurrency(activeValue)}
+          {CURRENCY.format(activeValue)}
         </span>
-      </span>
+      </Text>
     );
   }
   return (
-    <span style={{ color: tokens.fgFaint }}>
-      {count}
-      {" · closed"}
-    </span>
+    <Text size="sm" tone="faint">
+      {count} · closed
+    </Text>
   );
 }
 
@@ -78,423 +62,148 @@ export function ContactListView({
   onContactClick,
 }: {
   contacts: Contact[];
-  dealsByContact: Map<string, { count: number; activeValue: number }>;
+  dealsByContact: DealsByContact;
   onContactClick: (contact: Contact) => void;
 }) {
-  const tokens = useStyleTokens();
-  const isMobile = useIsMobile();
-  const [query, setQuery] = useState<string>("");
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
 
-  const activeContacts = contacts.filter((c) => c.status === "active");
+  const filtered = useMemo(() => {
+    const active = contacts.filter((c) => c.status === "active");
+    if (!q) return active;
+    return active.filter(
+      (c) =>
+        (c.name || "").toLowerCase().includes(q) ||
+        (c.company || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q),
+    );
+  }, [contacts, q]);
 
-  // Case-insensitive substring match across name/company/email. Empty query
-  // returns the full list (existing behavior preserved).
-  const trimmedQuery = query.trim().toLowerCase();
-  const filteredContacts = trimmedQuery
-    ? activeContacts.filter((c) => {
-        const name = (c.name || "").toLowerCase();
-        const company = (c.company || "").toLowerCase();
-        const email = (c.email || "").toLowerCase();
-        return (
-          name.includes(trimmedQuery) ||
-          company.includes(trimmedQuery) ||
-          email.includes(trimmedQuery)
-        );
-      })
-    : activeContacts;
-
-  // Header order: Name, Company, Role, Deals, Email, Source. "Deals" is
-  // numeric and right-aligned.
-  const HEADERS: { label: string; align: "left" | "right" }[] = [
-    { label: "Name", align: "left" },
-    { label: "Company", align: "left" },
-    { label: "Role", align: "left" },
-    { label: "Deals", align: "right" },
-    { label: "Email", align: "left" },
-    { label: "Source", align: "left" },
+  const columns: Column<Contact>[] = [
+    {
+      key: "name",
+      header: "Name",
+      render: (c) => (
+        <Text size="sm" weight="medium">
+          {c.name}
+        </Text>
+      ),
+    },
+    { key: "company", header: "Company", render: (c) => c.company || <Dash /> },
+    { key: "role", header: "Role", render: (c) => c.role || <Dash /> },
+    {
+      key: "deals",
+      header: "Deals",
+      align: "right",
+      render: (c) => {
+        const d = dealsByContact.get(c.id);
+        return <DealsCell count={d?.count ?? 0} activeValue={d?.activeValue ?? 0} />;
+      },
+    },
+    { key: "email", header: "Email", render: (c) => c.email || <Dash /> },
+    {
+      key: "source",
+      header: "Source",
+      render: (c) => (c.lead_source ? (SOURCE_LABELS[c.lead_source] ?? <Dash />) : <Dash />),
+    },
   ];
 
-  const noMatches = trimmedQuery && filteredContacts.length === 0;
+  // Container-width breakpoint (not viewport): the app renders in an iframe pane
+  // the host sizes, so a 6-column table would horizontally-scroll on a phone.
+  // Below 640px we fall back to a stacked card list with comfortable tap targets.
+  const { ref, isNarrow } = useBreakpoint<HTMLDivElement>(640);
 
-  return (
-    <div style={{ padding: "1rem", overflowX: "auto" }}>
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: "420px",
-          marginBottom: "0.75rem",
-        }}
-      >
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, company, or email…"
-          style={{
-            width: "100%",
-            padding: "0.5rem 2rem 0.5rem 0.75rem",
-            fontSize: "0.85rem",
-            background: tokens.bg,
-            color: tokens.fg,
-            border: `1px solid ${tokens.border}`,
-            borderRadius: "6px",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
-        {query && (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={() => setQuery("")}
-            style={{
-              position: "absolute",
-              right: "0.4rem",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: "1.5rem",
-              height: "1.5rem",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: tokens.fgMuted,
-              fontSize: "1rem",
-              lineHeight: 1,
-              padding: 0,
-              borderRadius: "4px",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                tokens.bgHover;
-              (e.currentTarget as HTMLButtonElement).style.color = tokens.fg;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "none";
-              (e.currentTarget as HTMLButtonElement).style.color =
-                tokens.fgMuted;
-            }}
-          >
-            {"×"}
-          </button>
-        )}
-      </div>
-      {isMobile ? (
-        <CardList
-          contacts={filteredContacts}
-          dealsByContact={dealsByContact}
-          onContactClick={onContactClick}
-          tokens={tokens}
-          query={trimmedQuery}
-          noMatches={!!noMatches}
-        />
-      ) : (
-        <TableView
-          contacts={filteredContacts}
-          dealsByContact={dealsByContact}
-          onContactClick={onContactClick}
-          tokens={tokens}
-          headers={HEADERS}
-          query={trimmedQuery}
-          noMatches={!!noMatches}
-        />
-      )}
-    </div>
+  const emptyState = (
+    <EmptyState
+      title={q ? "No matches" : "No contacts"}
+      description={q ? `No contacts match "${query}".` : "Contacts will appear here."}
+    />
   );
-}
 
-function TableView({
-  contacts,
-  dealsByContact,
-  onContactClick,
-  tokens,
-  headers,
-  query,
-  noMatches,
-}: {
-  contacts: Contact[];
-  dealsByContact: Map<string, { count: number; activeValue: number }>;
-  onContactClick: (contact: Contact) => void;
-  tokens: ReturnType<typeof useStyleTokens>;
-  headers: { label: string; align: "left" | "right" }[];
-  query: string;
-  noMatches: boolean;
-}) {
   return (
-    <table
+    <div
+      ref={ref}
       style={{
-        width: "100%",
-        borderCollapse: "collapse",
-        fontSize: "0.85rem",
+        padding: "1rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.75rem",
+        height: "100%",
+        minHeight: 0,
       }}
     >
-      <thead>
-        <tr style={{ background: tokens.bgRaised }}>
-          {headers.map((h) => (
-            <th
-              key={h.label}
-              style={{
-                textAlign: h.align,
-                padding: "0.6rem 0.75rem",
-                borderBottom: `2px solid ${tokens.border}`,
-                fontSize: "0.7rem",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-                color: tokens.fgMuted,
-              }}
-            >
-              {h.label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {contacts.map((contact) => {
-          const dealAgg = dealsByContact.get(contact.id);
-          const count = dealAgg?.count ?? 0;
-          const activeValue = dealAgg?.activeValue ?? 0;
-          return (
-            <tr
-              key={contact.id}
-              onClick={() => onContactClick(contact)}
-              style={{ cursor: "pointer" }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLTableRowElement).style.background =
-                  tokens.bgHover;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLTableRowElement).style.background =
-                  "transparent";
-              }}
-            >
-              <td
-                style={{
-                  padding: "0.6rem 0.75rem",
-                  borderBottom: `1px solid ${tokens.border}`,
-                  fontWeight: 600,
-                }}
-              >
-                {contact.name}
-              </td>
-              <td
-                style={{
-                  padding: "0.6rem 0.75rem",
-                  borderBottom: `1px solid ${tokens.border}`,
-                }}
-              >
-                {contact.company || "--"}
-              </td>
-              <td
-                style={{
-                  padding: "0.6rem 0.75rem",
-                  borderBottom: `1px solid ${tokens.border}`,
-                }}
-              >
-                {contact.role || "--"}
-              </td>
-              <td
-                style={{
-                  padding: "0.6rem 0.75rem",
-                  borderBottom: `1px solid ${tokens.border}`,
-                  textAlign: "right",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {renderDealsCell(count, activeValue, tokens)}
-              </td>
-              <td
-                style={{
-                  padding: "0.6rem 0.75rem",
-                  borderBottom: `1px solid ${tokens.border}`,
-                  color: tokens.fgMuted,
-                }}
-              >
-                {contact.email || "--"}
-              </td>
-              <td
-                style={{
-                  padding: "0.6rem 0.75rem",
-                  borderBottom: `1px solid ${tokens.border}`,
-                }}
-              >
-                {contact.lead_source ? (
-                  <span
+      <SearchField
+        variant="boxed"
+        placeholder="Search by name, company, or email…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{ maxWidth: 420 }}
+      />
+      {isNarrow ? (
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {filtered.length === 0 ? (
+            emptyState
+          ) : (
+            <Stack gap="0.5rem">
+              {filtered.map((c) => {
+                const d = dealsByContact.get(c.id);
+                const parts = [c.company, c.role].filter(
+                  (p): p is string => !!p && p.trim() !== "",
+                );
+                return (
+                  <ListRow
+                    key={c.id}
+                    interactive
+                    onClick={() => onContactClick(c)}
+                    title={
+                      <Text size="sm" weight="medium">
+                        {c.name}
+                      </Text>
+                    }
+                    meta={
+                      <Stack gap="0.1rem">
+                        <Text size="sm" tone={parts.length ? "muted" : "faint"}>
+                          {parts.length ? parts.join(" · ") : "—"}
+                        </Text>
+                        <Text size="sm" tone="muted">
+                          {c.email || "—"}
+                        </Text>
+                      </Stack>
+                    }
+                    trailing={
+                      <DealsCell count={d?.count ?? 0} activeValue={d?.activeValue ?? 0} />
+                    }
                     style={{
-                      fontSize: "0.7rem",
-                      padding: "0.15rem 0.5rem",
-                      borderRadius: "10px",
-                      background: tokens.bgSubtle,
-                      color: tokens.fgMuted,
+                      minHeight: 44,
+                      border: `1px solid ${tokens.border}`,
+                      borderRadius: tokens.radiusMd,
+                      background: tokens.bgRaised,
                     }}
-                  >
-                    {SOURCE_LABELS[contact.lead_source] || contact.lead_source}
-                  </span>
-                ) : (
-                  "--"
-                )}
-              </td>
-            </tr>
-          );
-        })}
-        {contacts.length === 0 && (
-          <tr>
-            <td
-              colSpan={headers.length}
-              style={{
-                padding: "2rem",
-                textAlign: "center",
-                color: tokens.fgMuted,
-              }}
-            >
-              {noMatches ? `No contacts match "${query}"` : "No contacts yet"}
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  );
-}
-
-function CardList({
-  contacts,
-  dealsByContact,
-  onContactClick,
-  tokens,
-  query,
-  noMatches,
-}: {
-  contacts: Contact[];
-  dealsByContact: Map<string, { count: number; activeValue: number }>;
-  onContactClick: (contact: Contact) => void;
-  tokens: ReturnType<typeof useStyleTokens>;
-  query: string;
-  noMatches: boolean;
-}) {
-  if (contacts.length === 0) {
-    return (
-      <div
-        style={{
-          padding: "2rem",
-          textAlign: "center",
-          color: tokens.fgMuted,
-          border: `1px solid ${tokens.border}`,
-          borderRadius: "8px",
-          background: tokens.bgRaised,
-        }}
-      >
-        {noMatches ? `No contacts match "${query}"` : "No contacts yet"}
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-      {contacts.map((contact) => {
-        const dealAgg = dealsByContact.get(contact.id);
-        const count = dealAgg?.count ?? 0;
-        const activeValue = dealAgg?.activeValue ?? 0;
-
-        // Second-row composition: company · role with separator handling.
-        const parts = [contact.company, contact.role].filter(
-          (p): p is string => !!p && p.trim() !== "",
-        );
-        const hasSubline = parts.length > 0;
-
-        return (
-          <button
-            key={contact.id}
-            type="button"
-            className="crm-touch-target"
-            onClick={() => onContactClick(contact)}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                tokens.bgHover;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                tokens.bgRaised;
-            }}
-            onFocus={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.outline =
-                `2px solid ${tokens.accent}`;
-            }}
-            onBlur={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.outline = "none";
-            }}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.25rem",
-              width: "100%",
-              textAlign: "left",
-              padding: "0.75rem",
-              border: `1px solid ${tokens.border}`,
-              borderRadius: "8px",
-              background: tokens.bgRaised,
-              color: tokens.fg,
-              cursor: "pointer",
-              font: "inherit",
-              outline: "none",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "0.5rem",
-              }}
-            >
-              <span
-                style={{
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {contact.name}
-              </span>
-              <span
-                style={{
-                  fontSize: "0.8rem",
-                  fontVariantNumeric: "tabular-nums",
-                  flexShrink: 0,
-                }}
-              >
-                {renderDealsCell(count, activeValue, tokens)}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: "0.8rem",
-                color: hasSubline ? tokens.fgMuted : tokens.fgFaint,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {hasSubline ? parts.join(" · ") : "—"}
-            </div>
-            <div
-              style={{
-                fontSize: "0.8rem",
-                color: tokens.fgMuted,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {contact.email || "—"}
-            </div>
-          </button>
-        );
-      })}
+                  />
+                );
+              })}
+            </Stack>
+          )}
+        </div>
+      ) : (
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "auto",
+            border: `1px solid ${tokens.border}`,
+            borderRadius: tokens.radiusMd,
+          }}
+        >
+          <Table
+            data={filtered}
+            columns={columns}
+            rowKey={(c) => c.id}
+            onRowClick={onContactClick}
+            empty={emptyState}
+          />
+        </div>
+      )}
     </div>
   );
 }
