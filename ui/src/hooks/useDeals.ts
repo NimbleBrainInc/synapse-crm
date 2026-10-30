@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { useSynapse, useDataSync } from "@nimblebrain/synapse/react";
+import { useApp, useDataSync } from "@nimblebrain/synapse/react";
 
 export interface Deal {
   id: string;
@@ -45,7 +45,7 @@ export const STAGE_COLORS: Record<string, string> = {
 export type DealsByStage = Record<string, Deal[]>;
 
 export function useDeals() {
-  const synapse = useSynapse();
+  const app = useApp();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +55,7 @@ export function useDeals() {
     const id = ++callId.current;
     setError(null);
     try {
-      const result = await synapse.callTool<Record<string, unknown>, Deal[]>(
-        "list_deals",
-      );
+      const result = await app.callTool<Deal[]>("list_deals");
       if (id !== callId.current) return;
       if (result.isError) {
         setError(String(result.data));
@@ -72,15 +70,13 @@ export function useDeals() {
     } finally {
       if (id === callId.current) setLoading(false);
     }
-  }, [synapse]);
+  }, [app]);
 
   useEffect(() => {
-    synapse.ready.then(() => refresh());
-  }, [synapse, refresh]);
-
-  useDataSync(() => {
     refresh();
-  });
+  }, [refresh]);
+
+  useDataSync(refresh);
 
   const dealsByStage = useMemo<DealsByStage>(() => {
     const grouped: DealsByStage = {};
