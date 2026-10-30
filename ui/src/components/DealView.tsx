@@ -6,9 +6,9 @@ import {
   useState,
 } from "react";
 import type React from "react";
-import { useSynapse } from "@nimblebrain/synapse/react";
+import { useApp } from "@nimblebrain/synapse/react";
 import { useStyleTokens } from "../tokens";
-import { usePanelHeader } from "./DetailPanel";
+import { usePanelCloseGuard, usePanelHeader } from "./DetailPanel";
 import type { PanelStackController } from "./DetailPanel";
 import type { Deal } from "../hooks/useDeals";
 import type { Contact } from "../hooks/useContacts";
@@ -92,7 +92,7 @@ export function DealView({
   controller,
   onChanged,
 }: DealViewProps): React.ReactElement {
-  const synapse = useSynapse();
+  const app = useApp();
   const tokens = useStyleTokens();
 
   // Fetched deal (used in view/edit). Null while loading or in create mode.
@@ -127,10 +127,7 @@ export function DealView({
     setLoading(true);
     setFetchError(null);
     try {
-      const result = await synapse.callTool<
-        { deal_id: string },
-        Deal
-      >("get_deal", { deal_id: dealId });
+      const result = await app.callTool<Deal>("get_deal", { deal_id: dealId });
       if (result.isError) {
         setFetchError(formatToolError(result.data, "Failed to load deal"));
         setDeal(null);
@@ -154,7 +151,7 @@ export function DealView({
     } finally {
       setLoading(false);
     }
-  }, [synapse, dealId]);
+  }, [app, dealId]);
 
   useEffect(() => {
     if (mode === "create") {
@@ -168,8 +165,8 @@ export function DealView({
       setLoading(false);
       return;
     }
-    synapse.ready.then(() => loadDeal());
-  }, [synapse, mode, loadDeal]);
+    void loadDeal();
+  }, [mode, loadDeal]);
 
   // -------------------------------------------------------------------------
   // Fetch contacts list (create mode only — for the datalist picker)
@@ -178,12 +175,9 @@ export function DealView({
   useEffect(() => {
     if (mode !== "create") return;
     let cancelled = false;
-    synapse.ready.then(async () => {
+    void (async () => {
       try {
-        const result = await synapse.callTool<
-          Record<string, unknown>,
-          { entities?: Contact[] } | Contact[]
-        >("list_contacts");
+        const result = await app.callTool<{ entities?: Contact[] } | Contact[]>("list_contacts", { limit: null });
         if (cancelled || result.isError) return;
         const raw = result.data;
         const list = Array.isArray(raw) ? raw : (raw?.entities ?? []);
@@ -191,20 +185,20 @@ export function DealView({
       } catch {
         // non-critical — datalist just won't have suggestions
       }
-    });
+    })();
     return () => {
       cancelled = true;
     };
-  }, [synapse, mode]);
+  }, [app, mode]);
 
-  // Resolve a typed contact name back to a contact id (exact match, case-insensitive)
-  const resolvedContactId = useMemo<string | null>(() => {
-    if (mode !== "create") return null;
-    const needle = contactName.trim().toLowerCase();
-    if (!needle) return null;
-    const hit = contacts.find((c) => c.name.toLowerCase() === needle);
-    return hit?.id ?? null;
+  // A name is safe to link only when it identifies one active contact.
+  const matchingContacts = useMemo(() => {
+    if (mode !== "create") return [];
+    const needle = contactName.trim().toLocaleLowerCase();
+    if (!needle) return [];
+    return contacts.filter((c) => c.status === "active" && c.name.trim().toLocaleLowerCase() === needle);
   }, [contactName, contacts, mode]);
+  const resolvedContactId = matchingContacts.length === 1 ? matchingContacts[0].id : null;
 
   // -------------------------------------------------------------------------
   // Dirty check (edit mode)
@@ -223,6 +217,9 @@ export function DealView({
     if (closeDate !== (deal.close_date ?? "")) return true;
     return false;
   }, [mode, deal, title, valueStr, probabilityStr, closeDate]);
+  const hasCreateDraft = mode === "create" &&
+    [title, valueStr, probabilityStr, closeDate, contactName].some((value) => value !== "");
+  const requestClose = usePanelCloseGuard(isDirty || hasCreateDraft, submitting);
 
   // -------------------------------------------------------------------------
   // Stage-move handler (view mode)
@@ -234,7 +231,7 @@ export function DealView({
       setStageMoving(true);
       setFetchError(null);
       try {
-        const result = await synapse.callTool("move_deal_stage", {
+        const result = await app.callTool("move_deal_stage", {
           deal_id: deal.id,
           stage: newStage,
         });
@@ -252,7 +249,7 @@ export function DealView({
         setStageMoving(false);
       }
     },
-    [synapse, deal, onChanged, loadDeal],
+    [app, deal, onChanged, loadDeal],
   );
 
   // -------------------------------------------------------------------------
@@ -295,7 +292,7 @@ export function DealView({
         payload.close_date = newDate === undefined ? null : newDate;
       }
 
-      const result = await synapse.callTool("update_deal", payload);
+      const result = await app.callTool("update_deal", payload);
       if (result.isError) {
         setSubmitError(formatToolError(result.data, "Failed to save deal"));
         return;
@@ -316,7 +313,7 @@ export function DealView({
     valueStr,
     probabilityStr,
     closeDate,
-    synapse,
+    app,
     onChanged,
     controller,
   ]);
@@ -349,7 +346,7 @@ export function DealView({
         ];
       }
 
-      const result = await synapse.callTool<typeof payload, Deal>(
+      const result = await app.callTool<Deal>(
         "create_deal",
         payload,
       );
@@ -384,27 +381,19 @@ export function DealView({
     closeDate,
     contactName,
     resolvedContactId,
-    synapse,
+    app,
     onChanged,
     controller,
   ]);
 
   const handleCancelEdit = useCallback(() => {
     if (!deal) return;
-    if (isDirty && !window.confirm("Discard changes?")) return;
-    controller.replaceTop({ kind: "deal", id: deal.id, mode: "view" });
-  }, [deal, isDirty, controller]);
+    requestClose(() => controller.replaceTop({ kind: "deal", id: deal.id, mode: "view" }));
+  }, [deal, requestClose, controller]);
 
   const handleCancelCreate = useCallback(() => {
-    const anyTyped =
-      title.trim() !== "" ||
-      valueStr.trim() !== "" ||
-      probabilityStr.trim() !== "" ||
-      closeDate.trim() !== "" ||
-      contactName.trim() !== "";
-    if (anyTyped && !window.confirm("Discard new deal?")) return;
-    controller.close();
-  }, [title, valueStr, probabilityStr, closeDate, contactName, controller]);
+    requestClose(controller.close);
+  }, [requestClose, controller]);
 
   // -------------------------------------------------------------------------
   // Header (title + actions slot) — registered via usePanelHeader (helmet)
@@ -771,7 +760,7 @@ export function DealView({
                     border: isActive
                       ? `2px solid ${color}`
                       : `1px solid ${tokens.border}`,
-                    background: isActive ? `${color}20` : "transparent",
+                    background: isActive ? `color-mix(in oklab, ${color} 13%, transparent)` : "transparent",
                     color: isActive ? color : tokens.fgMuted,
                     fontFamily: tokens.fontFamily,
                     fontSize: "0.7rem",
@@ -1041,7 +1030,9 @@ export function DealView({
                 marginTop: "0.25rem",
               }}
             >
-              No matching contact — this deal will not be linked.
+              {matchingContacts.length > 1
+                ? "Several contacts have this name. The deal will be created without a contact link."
+                : "No matching contact — this deal will not be linked."}
             </div>
           )}
         </div>

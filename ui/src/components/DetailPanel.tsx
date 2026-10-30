@@ -1,5 +1,5 @@
-import { Drawer } from "@nimblebrain/synapse/ui";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ConfirmDialog, Drawer } from "@nimblebrain/synapse/ui";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 
 // ---------------------------------------------------------------------------
@@ -129,6 +129,28 @@ export function usePanelHeader(header: PanelHeader): void {
   }, [ctx, title, actions]);
 }
 
+interface PanelCloseGuard {
+  dirty: boolean;
+  busy: boolean;
+}
+
+interface PanelCloseContextValue {
+  register: (guard: PanelCloseGuard) => () => void;
+  requestClose: (action: () => void) => void;
+}
+
+const PanelCloseContext = createContext<PanelCloseContextValue | null>(null);
+
+/** Guard user dismissals; successful saves use the controller directly. */
+export function usePanelCloseGuard(dirty: boolean, busy: boolean): (action: () => void) => void {
+  const context = useContext(PanelCloseContext);
+  useLayoutEffect(() => context?.register({ dirty, busy }), [context, dirty, busy]);
+  return useCallback((action: () => void) => {
+    if (context) context.requestClose(action);
+    else action();
+  }, [context]);
+}
+
 // ---------------------------------------------------------------------------
 // DetailPanel — now a thin shell over the shared Drawer. The panel *stack*
 // (push/pop, depth) and helmet-style header registration stay here; the
@@ -153,6 +175,27 @@ export function DetailPanel({
     () => ({ setHeader, clearHeader }),
     [setHeader, clearHeader],
   );
+
+  const closeGuard = useRef<PanelCloseGuard | null>(null);
+  const [pendingClose, setPendingClose] = useState<(() => void) | null>(null);
+  const registerCloseGuard = useCallback((guard: PanelCloseGuard) => {
+    closeGuard.current = guard;
+    return () => {
+      if (closeGuard.current === guard) closeGuard.current = null;
+    };
+  }, []);
+  const requestClose = useCallback((action: () => void) => {
+    if (closeGuard.current?.busy) return;
+    if (closeGuard.current?.dirty) setPendingClose(() => action);
+    else action();
+  }, []);
+  const closeContext = useMemo<PanelCloseContextValue>(
+    () => ({ register: registerCloseGuard, requestClose }),
+    [registerCloseGuard, requestClose],
+  );
+
+  // A completed save or a different entry must not retain a stale dismissal.
+  useEffect(() => setPendingClose(null), [top]);
 
   // The body owns the header: its usePanelHeader effect sets title/actions on
   // mount and clears on unmount. (We deliberately don't clear here on entry
@@ -191,22 +234,38 @@ export function DetailPanel({
   return (
     <Drawer
       open
-      onClose={() => controller.close()}
-      onEscape={() => (controller.stack.length > 1 ? controller.pop() : controller.close())}
+      onClose={() => requestClose(controller.close)}
+      onEscape={() => requestClose(controller.stack.length > 1 ? controller.pop : controller.close)}
       side={isCoarse ? "bottom" : "right"}
       width={480}
     >
       <Drawer.Header
         title={headerTitle}
-        onBack={depth > 1 ? () => controller.pop() : undefined}
+        onBack={depth > 1 ? () => requestClose(controller.pop) : undefined}
         actions={header.actions}
-        onClose={() => controller.close()}
+        onClose={() => requestClose(controller.close)}
       />
       <Drawer.Body>
         <div ref={bodyRef} tabIndex={-1} style={{ outline: "none" }}>
-          <PanelHeaderContext.Provider value={headerCtx}>{body}</PanelHeaderContext.Provider>
+          <PanelCloseContext.Provider value={closeContext}>
+            <PanelHeaderContext.Provider value={headerCtx}>{body}</PanelHeaderContext.Provider>
+          </PanelCloseContext.Provider>
         </div>
       </Drawer.Body>
+      <ConfirmDialog
+        open={pendingClose !== null}
+        onOpenChange={(open) => { if (!open) setPendingClose(null); }}
+        title="Discard unsaved changes?"
+        description="Your changes have not been saved."
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        destructive
+        onConfirm={() => {
+          const action = pendingClose;
+          setPendingClose(null);
+          action?.();
+        }}
+      />
     </Drawer>
   );
 }

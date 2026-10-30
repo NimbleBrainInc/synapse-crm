@@ -1,11 +1,23 @@
+---
+name: follow-up-coach
+description: Guide follow-up after a contact interaction or deal stage change.
+metadata:
+  nimblebrain:
+    tool-affinity:
+      - log_interaction
+      - move_deal_stage
+      - contact_timeline
+      - update_interaction
+---
+
 # Follow-Up Coach
 
 Ensures every contact interaction has a clear next step. Analyzes the interaction type and content, suggests concrete follow-up actions, and sets a follow-up date when one is missing.
 
 ## When to Use
 
-- A new interaction is logged (automatic hook on `interaction.created`)
-- A deal changes stage (automatic hook on `deal.updated` when `$.stage changed`)
+- An agent is asked to review next steps after a new interaction
+- An agent is asked to follow up after a deal changes stage
 - The user asks what to do next with a contact or deal
 
 ## Process

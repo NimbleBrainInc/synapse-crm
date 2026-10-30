@@ -3,11 +3,11 @@
 These tests pin the server's public contract:
 
 * The server instantiates as a ``FastMCP`` with the manifest's entities.
-* Every entity in the manifest gets the six auto-generated CRUD tools.
+* Each entity retains its public CRUD tools and hidden creation compatibility.
 * Every hand-written domain tool is registered and callable.
 * ``create_*`` tools accept flat kwargs (the 0.5.0+ shape).
 * The legacy ``{"data": {...}}`` wrapper is rejected by the JSON Schema
-  validator, matching the upjack 0.5.x contract.
+  validator, matching the prior flat-keyword contract.
 """
 
 from __future__ import annotations
@@ -78,7 +78,9 @@ def test_hand_written_tools_registered(mcp):
 
 def test_flat_kwargs_create_succeeds(mcp):
     """``create_deal`` accepts flat kwargs and returns a valid entity."""
-    created = _run(_call_tool(mcp, "create_deal", {"title": "Test", "stage": "qualified"}))
+    created = _run(
+        _call_tool(mcp, "create_deal", {"title": "Test", "stage": "qualified"})
+    )
 
     assert created["id"].startswith("dl_")
     assert created["type"] == "deal"
@@ -94,4 +96,8 @@ def test_legacy_data_wrapper_rejected(mcp):
     ``ToolError`` before reaching the server.
     """
     with pytest.raises(ToolError):
-        _run(_call_tool(mcp, "create_deal", {"data": {"title": "Wrapped", "stage": "qualified"}}))
+        _run(
+            _call_tool(
+                mcp, "create_deal", {"data": {"title": "Wrapped", "stage": "qualified"}}
+            )
+        )

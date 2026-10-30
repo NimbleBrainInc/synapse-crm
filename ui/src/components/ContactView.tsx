@@ -6,9 +6,10 @@ import {
   useState,
 } from "react";
 import type React from "react";
-import { useSynapse, useDataSync } from "@nimblebrain/synapse/react";
+import { useApp, useDataSync } from "@nimblebrain/synapse/react";
+import { tokens as ui } from "@nimblebrain/synapse/ui";
 import { useStyleTokens } from "../tokens";
-import { usePanelHeader, type PanelStackController } from "./DetailPanel";
+import { usePanelCloseGuard, usePanelHeader, type PanelStackController } from "./DetailPanel";
 import type { Contact } from "../hooks/useContacts";
 import { STAGE_LABELS, STAGE_COLORS } from "../hooks/useDeals";
 import type { Deal } from "../hooks/useDeals";
@@ -42,7 +43,7 @@ const LEAD_SOURCES: ReadonlyArray<LeadSource> = [
   "other",
 ];
 
-// Domain palette for interaction icons — kept inline; not a platform token.
+// Semantic channels follow the host's light and dark palettes.
 const TYPE_ICONS: Record<string, string> = {
   meeting: "M",
   email: "E",
@@ -51,10 +52,10 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  meeting: "#8B5CF6",
-  email: "#3B82F6",
-  call: "#10B981",
-  note: "#F59E0B",
+  meeting: ui.processing,
+  email: ui.accent,
+  call: ui.success,
+  note: ui.warning,
 };
 
 function formatCurrency(value: number): string {
@@ -152,13 +153,17 @@ export function ContactView({
   onChanged: () => void;
 }): React.ReactElement {
   const tokens = useStyleTokens();
-  const synapse = useSynapse();
+  const app = useApp();
 
   // -------------------------------------------------------------------------
   // Data state — fetched in view & edit modes
   // -------------------------------------------------------------------------
 
   const [contact, setContact] = useState<Contact | null>(null);
+  const contactRef = useRef<Contact | null>(null);
+  contactRef.current = contact;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const [contactError, setContactError] = useState<string | null>(null);
   const [loadingContact, setLoadingContact] = useState<boolean>(
     mode !== "create",
@@ -186,27 +191,28 @@ export function ContactView({
   const loadContact = useCallback(async () => {
     if (!contactId) return;
     const seq = ++contactSeqRef.current;
+    const requestedMode = modeRef.current;
     setLoadingContact(true);
     setContactError(null);
     try {
-      const result = await synapse.callTool("get_contact", {
+      const result = await app.callTool("get_contact", {
         contact_id: contactId,
       });
-      if (seq !== contactSeqRef.current) return;
+      if (seq !== contactSeqRef.current || (requestedMode === "view" && modeRef.current === "edit")) return;
       if (result.isError) {
         setContactError(formatToolError(result.data, "Failed to load contact"));
       } else {
         setContact(result.data as Contact);
       }
     } catch (err) {
-      if (seq !== contactSeqRef.current) return;
+      if (seq !== contactSeqRef.current || (requestedMode === "view" && modeRef.current === "edit")) return;
       setContactError(
         err instanceof Error ? err.message : "Failed to load contact",
       );
     } finally {
       if (seq === contactSeqRef.current) setLoadingContact(false);
     }
-  }, [synapse, contactId]);
+  }, [app, contactId]);
 
   const loadDeals = useCallback(async () => {
     if (!contactId) return;
@@ -214,7 +220,7 @@ export function ContactView({
     setLoadingDeals(true);
     setDealsError(null);
     try {
-      const result = await synapse.callTool("query_deals_by_relationship", {
+      const result = await app.callTool("query_deals_by_relationship", {
         rel: "belongs_to",
         target_id: contactId,
       });
@@ -235,7 +241,7 @@ export function ContactView({
     } finally {
       if (seq === dealsSeqRef.current) setLoadingDeals(false);
     }
-  }, [synapse, contactId]);
+  }, [app, contactId]);
 
   const loadTimeline = useCallback(async () => {
     if (!contactId) return;
@@ -243,7 +249,7 @@ export function ContactView({
     setLoadingTimeline(true);
     setTimelineError(null);
     try {
-      const result = await synapse.callTool("contact_timeline", {
+      const result = await app.callTool("contact_timeline", {
         contact_id: contactId,
       });
       if (seq !== timelineSeqRef.current) return;
@@ -264,34 +270,36 @@ export function ContactView({
     } finally {
       if (seq === timelineSeqRef.current) setLoadingTimeline(false);
     }
-  }, [synapse, contactId]);
+  }, [app, contactId]);
 
   // Fetch contact whenever id changes (view + edit modes).
   useEffect(() => {
     if (mode === "create" || !contactId) return;
-    synapse.ready.then(() => {
-      loadContact();
-    });
-  }, [synapse, mode, contactId, loadContact]);
+    // The view already supplied this contact. Keep its edit draft and discard
+    // any view-mode request that was still in flight when editing began.
+    if (mode === "edit" && contactRef.current?.id === contactId) {
+      contactSeqRef.current++;
+      setLoadingContact(false);
+      return;
+    }
+    void loadContact();
+  }, [mode, contactId, loadContact]);
 
   // Fetch deals + timeline only in view mode (edit hides those sections).
   useEffect(() => {
     if (mode !== "view" || !contactId) return;
-    synapse.ready.then(() => {
-      loadDeals();
-      loadTimeline();
-    });
-  }, [synapse, mode, contactId, loadDeals, loadTimeline]);
+    void loadDeals();
+    void loadTimeline();
+  }, [mode, contactId, loadDeals, loadTimeline]);
 
-  // Refresh on platform data-changed (only relevant in view mode where we
-  // display deals + timeline).
+  // Refresh when the host relays a server write notification.
   useDataSync(() => {
-    if (mode === "create" || !contactId) return;
-    loadContact();
-    if (mode === "view") {
-      loadDeals();
-      loadTimeline();
-    }
+    // Replacing contact in edit mode rehydrates the form and discards typing.
+    // Entering view mode reloads the saved contact after save or cancel.
+    if (mode !== "view" || !contactId) return;
+    void loadContact();
+    void loadDeals();
+    void loadTimeline();
   });
 
   // -------------------------------------------------------------------------
@@ -327,6 +335,7 @@ export function ContactView({
     () => !fieldsEqual(fields, originalFields),
     [fields, originalFields],
   );
+  const requestClose = usePanelCloseGuard(mode !== "view" && isDirty, saving);
 
   const updateField = useCallback(
     <K extends keyof EditableFields>(key: K, value: EditableFields[K]) => {
@@ -363,7 +372,7 @@ export function ContactView({
       sendIfChanged("notes");
       sendIfChanged("lead_source");
 
-      const result = await synapse.callTool("update_contact", payload);
+      const result = await app.callTool("update_contact", payload);
       if (result.isError) {
         setSaveError(formatToolError(result.data, "Failed to update contact"));
         return;
@@ -377,7 +386,7 @@ export function ContactView({
     } finally {
       setSaving(false);
     }
-  }, [contactId, contact, fields, originalFields, synapse, onChanged, controller]);
+  }, [contactId, contact, fields, originalFields, app, onChanged, controller]);
 
   const handleCreate = useCallback(async () => {
     if (!fields.name.trim()) {
@@ -395,7 +404,7 @@ export function ContactView({
       if (fields.notes) payload.notes = fields.notes;
       if (fields.lead_source) payload.lead_source = fields.lead_source;
 
-      const result = await synapse.callTool(
+      const result = await app.callTool(
         "find_or_create_contact",
         payload,
       );
@@ -403,8 +412,12 @@ export function ContactView({
         setSaveError(formatToolError(result.data, "Failed to create contact"));
         return;
       }
-      const created = result.data as Contact | { id?: string };
-      const newId = (created as Contact).id ?? (created as { id?: string }).id;
+      const created = result.data as { contact?: Contact; error?: string } | null;
+      if (created?.error) {
+        setSaveError(created.error);
+        return;
+      }
+      const newId = created?.contact?.id;
       if (!newId) {
         setSaveError("Server did not return a contact id");
         return;
@@ -418,21 +431,19 @@ export function ContactView({
     } finally {
       setSaving(false);
     }
-  }, [fields, synapse, onChanged, controller]);
+  }, [fields, app, onChanged, controller]);
 
   const handleCancel = useCallback(() => {
-    if (isDirty) {
-      const ok = window.confirm("Discard your changes?");
-      if (!ok) return;
-    }
-    if (mode === "create") {
-      controller.close();
-    } else if (contactId) {
-      controller.replaceTop({ kind: "contact", id: contactId, mode: "view" });
-    } else {
-      controller.close();
-    }
-  }, [isDirty, mode, contactId, controller]);
+    requestClose(() => {
+      if (mode === "create") {
+        controller.close();
+      } else if (contactId) {
+        controller.replaceTop({ kind: "contact", id: contactId, mode: "view" });
+      } else {
+        controller.close();
+      }
+    });
+  }, [requestClose, mode, contactId, controller]);
 
   // -------------------------------------------------------------------------
   // Log Interaction form (view mode)
@@ -462,7 +473,7 @@ export function ContactView({
     setLogSaving(true);
     setLogError(null);
     try {
-      const result = await synapse.callTool("log_interaction", {
+      const result = await app.callTool("log_interaction", {
         contact_id: contactId,
         interaction_type: logType,
         summary: logSummary.trim(),
@@ -492,7 +503,7 @@ export function ContactView({
     logSummary,
     logDetails,
     logFollowUp,
-    synapse,
+    app,
     loadTimeline,
     onChanged,
   ]);
@@ -1007,7 +1018,7 @@ export function ContactView({
                       width: "28px",
                       height: "28px",
                       borderRadius: "50%",
-                      background: `${typeColor}20`,
+                      background: `color-mix(in oklab, ${typeColor} 13%, transparent)`,
                       color: typeColor,
                       display: "flex",
                       alignItems: "center",
@@ -1268,7 +1279,7 @@ function DealRow({
               fontWeight: 700,
               padding: "0.1rem 0.4rem",
               borderRadius: "8px",
-              background: `${stageColor}20`,
+              background: `color-mix(in oklab, ${stageColor} 13%, transparent)`,
               color: stageColor,
             }}
           >

@@ -1,9 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "CRM Contact",
-  "description": "A person or lead in the CRM — the central entity that deals and interactions link to.",
+  "description": "A person or lead in the CRM \u2014 the central entity that deals and interactions link to.",
   "allOf": [
-    { "$ref": "https://upjack.dev/schemas/v1/upjack-entity.schema.json" }
+    {
+      "$ref": "entity.schema.json"
+    }
   ],
   "properties": {
     "name": {
@@ -34,9 +36,17 @@
     },
     "lead_source": {
       "type": "string",
-      "enum": ["referral", "inbound", "outbound", "event", "other"],
+      "enum": [
+        "referral",
+        "inbound",
+        "outbound",
+        "event",
+        "other"
+      ],
       "description": "How this contact was acquired"
     }
   },
-  "required": ["name"]
+  "required": [
+    "name"
+  ]
 }

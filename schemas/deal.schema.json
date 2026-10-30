@@ -3,7 +3,9 @@
   "title": "CRM Deal",
   "description": "A sales opportunity tied to a contact. Tracks value, stage, and close date through the pipeline.",
   "allOf": [
-    { "$ref": "https://upjack.dev/schemas/v1/upjack-entity.schema.json" }
+    {
+      "$ref": "entity.schema.json"
+    }
   ],
   "properties": {
     "title": {
@@ -12,23 +14,39 @@
       "maxLength": 256
     },
     "value": {
-      "type": ["number", "null"],
+      "type": [
+        "number",
+        "null"
+      ],
       "minimum": 0,
       "description": "Dollar value of the deal. Null clears any prior value."
     },
     "stage": {
       "type": "string",
-      "enum": ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"],
+      "enum": [
+        "lead",
+        "qualified",
+        "proposal",
+        "negotiation",
+        "closed_won",
+        "closed_lost"
+      ],
       "default": "lead",
       "description": "Current pipeline stage"
     },
     "close_date": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "format": "date",
       "description": "Expected or actual close date (ISO YYYY-MM-DD). Null clears the date."
     },
     "probability": {
-      "type": ["integer", "null"],
+      "type": [
+        "integer",
+        "null"
+      ],
       "minimum": 0,
       "maximum": 100,
       "description": "Win probability as a percentage (0-100). Null clears the probability."
@@ -38,5 +56,7 @@
       "description": "Denormalized contact name for quick display"
     }
   },
-  "required": ["title"]
+  "required": [
+    "title"
+  ]
 }

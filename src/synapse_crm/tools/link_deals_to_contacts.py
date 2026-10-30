@@ -2,26 +2,27 @@
 
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 
-def link_deals_to_contacts(app: UpjackApp) -> dict[str, Any]:
+def link_deals_to_contacts(app: CRMStore) -> dict[str, Any]:
     """Find deals with a contact_name but no belongs_to relationship and link them.
 
-    Matches deal.contact_name to contact.name (case-insensitive).
+    Matches deal.contact_name to one active contact.name (case-insensitive).
+    Leaves deals unlinked when multiple contacts share the matching name.
 
     Returns:
         Dict with linked count, skipped count, and details.
     """
-    deals = app.list_entities("deal", limit=1000)
-    contacts = app.list_entities("contact", limit=1000)
+    deals = app.list_entities("deal", limit=None)
+    # Read the full active collection so an older match or duplicate is visible.
+    contacts = app.list_entities("contact", status="active", limit=None)
 
-    # Build name -> contact lookup (lowercase)
-    contact_by_name: dict[str, dict[str, Any]] = {}
+    contacts_by_name: dict[str, list[dict[str, Any]]] = {}
     for c in contacts:
-        name = (c.get("name") or "").lower().strip()
+        name = (c.get("name") or "").strip().casefold()
         if name:
-            contact_by_name[name] = c
+            contacts_by_name.setdefault(name, []).append(c)
 
     linked = 0
     skipped = 0
@@ -36,29 +37,38 @@ def link_deals_to_contacts(app: UpjackApp) -> dict[str, Any]:
             continue
 
         # Match by contact_name
-        deal_contact = (deal.get("contact_name") or "").lower().strip()
+        deal_contact = (deal.get("contact_name") or "").strip().casefold()
         if not deal_contact:
             skipped += 1
             continue
 
-        contact = contact_by_name.get(deal_contact)
-        if not contact:
-            details.append({
-                "deal": deal.get("title", deal["id"]),
-                "status": f"no contact match for '{deal.get('contact_name')}'",
-            })
+        matches = contacts_by_name.get(deal_contact, [])
+        if len(matches) != 1:
+            details.append(
+                {
+                    "deal": deal.get("title", deal["id"]),
+                    "status": (
+                        f"ambiguous contact name '{deal.get('contact_name')}'"
+                        if matches
+                        else f"no contact match for '{deal.get('contact_name')}'"
+                    ),
+                }
+            )
             skipped += 1
             continue
 
         # Wire the relationship
+        contact = matches[0]
         new_rels = list(rels) + [{"rel": "belongs_to", "target": contact["id"]}]
         app.update_entity("deal", deal["id"], {"relationships": new_rels})
         linked += 1
-        details.append({
-            "deal": deal.get("title", deal["id"]),
-            "contact": contact.get("name", contact["id"]),
-            "status": "linked",
-        })
+        details.append(
+            {
+                "deal": deal.get("title", deal["id"]),
+                "contact": contact.get("name", contact["id"]),
+                "status": "linked",
+            }
+        )
 
     return {
         "linked": linked,

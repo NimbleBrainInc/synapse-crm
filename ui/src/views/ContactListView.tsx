@@ -9,7 +9,7 @@ import {
   tokens,
   useBreakpoint,
 } from "@nimblebrain/synapse/ui";
-import { useMemo, useState } from "react";
+import { type RefObject, useMemo, useState } from "react";
 import type { Contact } from "../hooks/useContacts";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -122,9 +122,9 @@ export function ContactListView({
 
   return (
     <div
-      ref={ref}
+      ref={ref as RefObject<HTMLDivElement>}
       style={{
-        padding: "1rem",
+        padding: `1rem ${tokens.gutter}`,
         display: "flex",
         flexDirection: "column",
         gap: "0.75rem",

@@ -4,7 +4,9 @@ version = "0.3.2"
 description = "Lightweight CRM with contact management, deal pipeline, and agent-driven follow-ups"
 requires-python = ">=3.13"
 dependencies = [
-    "upjack[mcp]>=0.5.1",
+    "fastmcp==3.2.0",
+    "jsonschema==4.26.0",
+    "python-ulid==3.1.0",
 ]
 
 [build-system]
@@ -13,6 +15,18 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/synapse_crm"]
+only-include = ["src/synapse_crm", "schemas", "skills", "seed", "ui/dist"]
+artifacts = ["ui/dist/**"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+"schemas" = "synapse_crm/assets/schemas"
+"skills" = "synapse_crm/assets/skills"
+"seed" = "synapse_crm/assets/seed"
+"ui/dist" = "synapse_crm/assets/ui/dist"
+
+[tool.hatch.build.targets.wheel.force-include]
+"context.md" = "synapse_crm/assets/context.md"
 
 [dependency-groups]
 dev = [

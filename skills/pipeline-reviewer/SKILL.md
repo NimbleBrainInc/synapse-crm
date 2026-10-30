@@ -1,10 +1,22 @@
+---
+name: pipeline-reviewer
+description: Review pipeline health, overdue follow-ups and deal activity.
+metadata:
+  nimblebrain:
+    tool-affinity:
+      - pipeline_summary
+      - search_deals
+      - search_interactions
+      - contact_timeline
+---
+
 # Pipeline Reviewer
 
 Daily health check of the sales pipeline. Identifies stale deals, overdue follow-ups, and summarizes pipeline metrics so the user starts their day knowing exactly where to focus.
 
 ## When to Use
 
-- Daily schedule fires (weekday mornings at 9 AM)
+- A person requests a daily or periodic pipeline review
 - The user asks about pipeline health, revenue forecast, or "what needs attention"
 - The user asks for a deal status summary
 

@@ -2,6 +2,7 @@ import { STAGES, STAGE_LABELS, STAGE_COLORS } from "../hooks/useDeals";
 import type { DealsByStage, Deal } from "../hooks/useDeals";
 import { DealCard } from "../components/DealCard";
 import { useStyleTokens } from "../tokens";
+import { tokens as ui } from "@nimblebrain/synapse/ui";
 
 export function PipelineView({
   dealsByStage,
@@ -13,15 +14,16 @@ export function PipelineView({
   const tokens = useStyleTokens();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <div
         className="crm-pipeline"
         style={{
           display: "flex",
           gap: "0.75rem",
-          padding: "1rem",
-          overflowX: "auto",
-          minHeight: "calc(100vh - 140px)",
+          padding: `1rem ${ui.gutter}`,
+          overflow: "auto",
+          flex: 1,
+          minHeight: 0,
         }}
       >
         {STAGES.map((stage) => {

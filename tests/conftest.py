@@ -2,7 +2,7 @@
 
 The CRM server is a module-level singleton (``synapse_crm.server.mcp``) bound
 to a workspace at import time. To get an isolated workspace per test, we set
-``UPJACK_ROOT`` to ``tmp_path`` and reload the server module so the singleton
+both supported workspace variables to ``tmp_path`` and reload the server so it
 re-binds to the fresh workspace.
 """
 
@@ -53,12 +53,13 @@ async def _call_tool(mcp, name: str, arguments: dict | None = None) -> Any:
 def server_module(tmp_path, monkeypatch):
     """Reload ``synapse_crm.server`` against an isolated per-test workspace.
 
-    ``UPJACK_ROOT`` takes priority over the ``root`` argument passed to
-    ``create_server`` (see ``upjack.paths.resolve_root``), so setting it
-    before reloading is enough to isolate the workspace. Reload is required
-    because the module captures ``mcp`` and ``_app`` at import time.
+    ``MPAK_WORKSPACE`` is the primary selection; ``UPJACK_ROOT`` remains a
+    fallback for older clients. Set both so an inherited shell value cannot
+    redirect tests to a real workspace. Reload is required because the module
+    captures ``mcp`` and ``_app`` at import time.
     """
     monkeypatch.setenv("UPJACK_ROOT", str(tmp_path))
+    monkeypatch.setenv("MPAK_WORKSPACE", str(tmp_path))
 
     import synapse_crm.server as module
 
@@ -74,5 +75,5 @@ def mcp(server_module):
 
 @pytest.fixture
 def app(server_module):
-    """The reloaded ``UpjackApp`` instance, bound to the per-test workspace."""
+    """The reloaded CRMStore, bound to the per-test workspace."""
     return server_module._app

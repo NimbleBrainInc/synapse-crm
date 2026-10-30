@@ -2,11 +2,11 @@
 
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 
 def find_or_create_contact(
-    app: UpjackApp,
+    app: CRMStore,
     name: str,
     email: str = "",
     phone: str = "",
@@ -19,7 +19,7 @@ def find_or_create_contact(
 
     Search priority:
     1. Exact email match (if email provided)
-    2. Name substring match
+    2. Exact normalized name match (only without an email)
 
     If a match is found, updates it with any new non-empty fields.
     If no match, creates a new contact.
@@ -28,27 +28,22 @@ def find_or_create_contact(
         Dict with 'contact' (the entity), 'action' ('found' or 'created'),
         and 'next_step'. Returns {"error": "..."} on failure.
     """
-    existing = None
-
-    # 1. Search by email (strongest signal)
-    if email:
-        results = app.search_entities("contact", query=email, limit=5)
-        for r in results:
-            if r.get("email", "").lower() == email.lower() and r.get("status") == "active":
-                existing = r
-                break
-
-    # 2. Fall back to name search
-    if not existing and name:
-        results = app.search_entities("contact", query=name, limit=10)
-        for r in results:
-            if r.get("status") != "active":
-                continue
-            # Case-insensitive name match (exact or contained)
-            r_name = r.get("name", "").lower()
-            if name.lower() == r_name or name.lower() in r_name or r_name in name.lower():
-                existing = r
-                break
+    name, email = name.strip(), email.strip()
+    if not name:
+        return {"error": "A contact name is required."}
+    field, value = ("email", email) if email else ("name", name)
+    # The uniqueness check must cover the whole active collection. A limited
+    # search page cannot establish that a name or email identifies one person.
+    matches = [
+        contact
+        for contact in app.list_entities("contact", limit=None)
+        if (contact.get(field) or "").strip().casefold() == value.casefold()
+    ]
+    if len(matches) > 1:
+        return {
+            "error": f"Multiple active contacts match {field} '{value}'. Choose the contact by ID before updating it."
+        }
+    existing = matches[0] if matches else None
 
     if existing:
         # Update with any new non-empty fields
@@ -66,7 +61,9 @@ def find_or_create_contact(
         if notes:
             old_notes = existing.get("notes", "") or ""
             if notes not in old_notes:
-                updates["notes"] = f"{old_notes}\n{notes}".strip() if old_notes else notes
+                updates["notes"] = (
+                    f"{old_notes}\n{notes}".strip() if old_notes else notes
+                )
 
         if updates:
             existing = app.update_entity("contact", existing["id"], updates)

@@ -2,22 +2,29 @@
 
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
-_STAGE_ORDER = ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"]
+_STAGE_ORDER = [
+    "lead",
+    "qualified",
+    "proposal",
+    "negotiation",
+    "closed_won",
+    "closed_lost",
+]
 
 
-def pipeline_summary(app: UpjackApp) -> dict[str, Any]:
+def pipeline_summary(app: CRMStore) -> dict[str, Any]:
     """Compute aggregate sales pipeline metrics.
 
     Args:
-        app: UpjackApp instance.
+        app: CRMStore instance.
 
     Returns:
         Context dict with stages array, totals, weighted value, win rate,
         and next_step.
     """
-    all_deals = app.list_entities("deal", limit=1000)
+    all_deals = app.list_entities("deal", limit=None)
 
     # Group by stage
     stages: dict[str, dict[str, Any]] = {}
@@ -62,12 +69,14 @@ def pipeline_summary(app: UpjackApp) -> dict[str, Any]:
         s = stages[stage]
         probs = s["probabilities"]
         avg_prob = round(sum(probs) / len(probs)) if probs else 0
-        stage_results.append({
-            "stage": s["stage"],
-            "count": s["count"],
-            "total_value": s["total_value"],
-            "avg_probability": avg_prob,
-        })
+        stage_results.append(
+            {
+                "stage": s["stage"],
+                "count": s["count"],
+                "total_value": s["total_value"],
+                "avg_probability": avg_prob,
+            }
+        )
 
     # Win rate
     total_closed = closed_won + closed_lost

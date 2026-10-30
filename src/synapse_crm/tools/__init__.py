@@ -18,7 +18,7 @@ def register_tools(mcp, app):
 
     Args:
         mcp: FastMCP server instance.
-        app: UpjackApp instance for entity access.
+        app: CRMStore instance for entity access.
     """
 
     @mcp.tool(
@@ -53,7 +53,9 @@ def register_tools(mcp, app):
         details: str = "",
         follow_up_date: str = "",
     ) -> dict:
-        return log_interaction(app, contact_id, interaction_type, summary, details, follow_up_date)
+        return log_interaction(
+            app, contact_id, interaction_type, summary, details, follow_up_date
+        )
 
     @mcp.tool(
         name="pipeline_summary",
@@ -70,9 +72,9 @@ def register_tools(mcp, app):
         name="find_or_create_contact",
         description=(
             "ALWAYS use this instead of create_contact. Searches for an existing "
-            "contact by email (exact) or name (fuzzy) and returns it, updating any "
-            "new fields. Only creates a new contact if no match is found. Prevents "
-            "duplicates."
+            "active contact by exact normalized email, or exact normalized name when "
+            "no email is supplied. Ambiguous matches return an error without changing "
+            "a contact. Only creates a new contact when no match is found."
         ),
     )
     def _find_or_create_contact(
@@ -84,7 +86,9 @@ def register_tools(mcp, app):
         lead_source: str = "",
         notes: str = "",
     ) -> dict:
-        return find_or_create_contact(app, name, email, phone, company, role, lead_source, notes)
+        return find_or_create_contact(
+            app, name, email, phone, company, role, lead_source, notes
+        )
 
     @mcp.tool(
         name="link_deals_to_contacts",

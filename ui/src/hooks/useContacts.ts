@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSynapse, useDataSync } from "@nimblebrain/synapse/react";
+import { useApp, useDataSync } from "@nimblebrain/synapse/react";
 
 export interface Contact {
   id: string;
@@ -17,7 +17,7 @@ export interface Contact {
 }
 
 export function useContacts() {
-  const synapse = useSynapse();
+  const app = useApp();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +27,9 @@ export function useContacts() {
     const id = ++callId.current;
     setError(null);
     try {
-      const result = await synapse.callTool<Record<string, unknown>, Contact[]>(
+      const result = await app.callTool<Contact[] | { entities: Contact[] }>(
         "list_contacts",
+        { limit: null },
       );
       if (id !== callId.current) return;
       if (result.isError) {
@@ -44,15 +45,13 @@ export function useContacts() {
     } finally {
       if (id === callId.current) setLoading(false);
     }
-  }, [synapse]);
+  }, [app]);
 
   useEffect(() => {
-    synapse.ready.then(() => refresh());
-  }, [synapse, refresh]);
+    void refresh();
+  }, [refresh]);
 
-  useDataSync(() => {
-    refresh();
-  });
+  useDataSync(refresh);
 
   return { contacts, loading, error, refresh } as const;
 }

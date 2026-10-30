@@ -1,4 +1,4 @@
-import { Card, Inline, Text } from "@nimblebrain/synapse/ui";
+import { Card, Inline, Text, tokens } from "@nimblebrain/synapse/ui";
 import type { Deal } from "../hooks/useDeals";
 import { STAGE_COLORS } from "../hooks/useDeals";
 
@@ -25,7 +25,7 @@ export function DealCard({
   onClick: () => void;
 }) {
   const days = daysInStage(deal.updated_at);
-  const stageColor = STAGE_COLORS[deal.stage] || "#6B7280";
+  const stageColor = STAGE_COLORS[deal.stage] || tokens.fgMuted;
 
   // The library `Card` brings the surface, hairline border, radius, and a real
   // token-driven hover lift (replacing the hand-rolled rgba shadow). The stage

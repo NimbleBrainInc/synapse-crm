@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type React from "react";
-import { useTheme, useVisibleState } from "@nimblebrain/synapse/react";
+import { useTheme, useModelContext } from "@nimblebrain/synapse/react";
+import { AppFrame, Button, Inline, SegmentedControl, tokens as ui } from "@nimblebrain/synapse/ui";
 import { useDeals } from "./hooks/useDeals";
 import { useContacts } from "./hooks/useContacts";
 import { usePipelineSummary } from "./hooks/usePipelineSummary";
@@ -136,7 +136,7 @@ export default function App() {
 
   // Push visible state to the agent. IDs only — agent fetches the rest via
   // tools. Avoid leaking notes / titles / freeform text here.
-  const pushState = useVisibleState();
+  const pushState = useModelContext();
   useEffect(() => {
     const activeDealCount = deals.filter(
       (d) => d.status === "active" && !d.stage.startsWith("closed_"),
@@ -162,96 +162,37 @@ export default function App() {
     refreshContacts();
   };
 
-  // Shared base for the view-toggle buttons. Active state uses
-  // `tokens.accentSoft` to read as a brand-tinted highlight.
-  const buttonBase: React.CSSProperties = {
-    padding: "0.4rem 1rem",
-    fontSize: "0.8rem",
-    border: `1px solid ${tokens.border}`,
-    cursor: "pointer",
-    color: tokens.fg,
-    fontFamily: tokens.fontFamily,
-  };
-
   return (
-    <div
-      style={{
-        fontFamily: tokens.fontFamily,
-        minHeight: "100vh",
-        background: tokens.bg,
-        color: tokens.fg,
-      }}
-    >
-      <PipelineSummaryBar summary={summary} />
-
-      <header
+    <AppFrame contentWidth="full">
+      <AppFrame.Header
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0.6rem 1rem",
+          padding: 0,
           borderBottom: `1px solid ${tokens.border}`,
           background: tokens.bgRaised,
         }}
       >
-        <div style={{ display: "flex", gap: 0 }}>
-          {(["pipeline", "contacts"] as const).map((view, i, arr) => {
-            const isActive = activeView === view;
-            return (
-              <button
-                key={view}
-                type="button"
-                className="crm-touch-target"
-                onClick={() => setActiveView(view)}
-                style={{
-                  ...buttonBase,
-                  fontWeight: isActive ? 600 : 400,
-                  borderRadius:
-                    i === 0
-                      ? "6px 0 0 6px"
-                      : i === arr.length - 1
-                        ? "0 6px 6px 0"
-                        : "0",
-                  background: isActive ? tokens.accentSoft : tokens.bg,
-                  color: isActive ? tokens.accent : tokens.fg,
-                  borderColor: isActive ? tokens.accent : tokens.border,
-                  textTransform: "capitalize",
-                  marginLeft: i > 0 ? "-1px" : 0,
-                  zIndex: isActive ? 1 : 0,
-                  position: "relative",
-                }}
-              >
-                {view === "pipeline" ? "Pipeline" : "Contacts"}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          className="crm-touch-target"
-          onClick={() =>
-            panel.push({
-              kind: activeView === "pipeline" ? "deal-create" : "contact-create",
-            })
-          }
-          style={{
-            fontFamily: tokens.fontFamily,
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            padding: "0.4rem 0.85rem",
-            borderRadius: "6px",
-            cursor: "pointer",
-            lineHeight: 1.2,
-            border: `1px solid ${tokens.accent}`,
-            background: "transparent",
-            color: tokens.accent,
-          }}
-        >
-          {activeView === "pipeline" ? "+ New Deal" : "+ New Contact"}
-        </button>
-      </header>
+        <PipelineSummaryBar summary={summary} />
+        <Inline justify="between" wrap style={{ padding: `0.6rem ${ui.gutter}` }}>
+          <SegmentedControl
+            aria-label="CRM view"
+            options={[
+              { value: "pipeline" as const, label: "Pipeline" },
+              { value: "contacts" as const, label: "Contacts" },
+            ]}
+            value={activeView}
+            onChange={setActiveView}
+          />
+          <Button
+            type="button"
+            className="crm-touch-target"
+            onClick={() => panel.push({ kind: activeView === "pipeline" ? "deal-create" : "contact-create" })}
+          >
+            {activeView === "pipeline" ? "New deal" : "New contact"}
+          </Button>
+        </Inline>
+      </AppFrame.Header>
 
-      <main>
+      <AppFrame.Body bleed>
         {activeView === "pipeline" ? (
           <PipelineView
             dealsByStage={dealsByStage}
@@ -268,7 +209,7 @@ export default function App() {
             }
           />
         )}
-      </main>
+      </AppFrame.Body>
 
       <DetailPanel
         controller={panel}
@@ -319,6 +260,6 @@ export default function App() {
           }
         }}
       />
-    </div>
+    </AppFrame>
   );
 }

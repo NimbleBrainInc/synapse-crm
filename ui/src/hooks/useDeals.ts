@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { useSynapse, useDataSync } from "@nimblebrain/synapse/react";
+import { useApp, useDataSync } from "@nimblebrain/synapse/react";
+import { tokens } from "@nimblebrain/synapse/ui";
 
 export interface Deal {
   id: string;
@@ -34,18 +35,18 @@ export const STAGE_LABELS: Record<string, string> = {
 };
 
 export const STAGE_COLORS: Record<string, string> = {
-  lead: "#6B7280",
-  qualified: "#3B82F6",
-  proposal: "#8B5CF6",
-  negotiation: "#F59E0B",
-  closed_won: "#10B981",
-  closed_lost: "#EF4444",
+  lead: tokens.fgMuted,
+  qualified: tokens.accent,
+  proposal: tokens.processing,
+  negotiation: tokens.warning,
+  closed_won: tokens.success,
+  closed_lost: tokens.danger,
 };
 
 export type DealsByStage = Record<string, Deal[]>;
 
 export function useDeals() {
-  const synapse = useSynapse();
+  const app = useApp();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +56,9 @@ export function useDeals() {
     const id = ++callId.current;
     setError(null);
     try {
-      const result = await synapse.callTool<Record<string, unknown>, Deal[]>(
+      const result = await app.callTool<Deal[] | { entities: Deal[] }>(
         "list_deals",
+        { limit: null },
       );
       if (id !== callId.current) return;
       if (result.isError) {
@@ -72,15 +74,13 @@ export function useDeals() {
     } finally {
       if (id === callId.current) setLoading(false);
     }
-  }, [synapse]);
+  }, [app]);
 
   useEffect(() => {
-    synapse.ready.then(() => refresh());
-  }, [synapse, refresh]);
+    void refresh();
+  }, [refresh]);
 
-  useDataSync(() => {
-    refresh();
-  });
+  useDataSync(refresh);
 
   const dealsByStage = useMemo<DealsByStage>(() => {
     const grouped: DealsByStage = {};

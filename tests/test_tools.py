@@ -175,7 +175,8 @@ class TestLogInteraction:
         )
         rels = ix.get("relationships") or []
         assert any(
-            r.get("rel") == "belongs_to" and r.get("target") == contact["id"] for r in rels
+            r.get("rel") == "belongs_to" and r.get("target") == contact["id"]
+            for r in rels
         ), f"interaction missing belongs_to -> {contact['id']}; got {rels!r}"
 
     def test_denormalizes_contact_name(self, mcp):
@@ -338,9 +339,15 @@ class TestPipelineSummary:
 
     def test_mixed_stages_aggregate_correctly(self, mcp):
         _create_deal(mcp, title="Lead A", stage="lead", value=1000, probability=10)
-        _create_deal(mcp, title="Qualified A", stage="qualified", value=2000, probability=25)
-        _create_deal(mcp, title="Qualified B", stage="qualified", value=3000, probability=25)
-        _create_deal(mcp, title="Proposal A", stage="proposal", value=5000, probability=50)
+        _create_deal(
+            mcp, title="Qualified A", stage="qualified", value=2000, probability=25
+        )
+        _create_deal(
+            mcp, title="Qualified B", stage="qualified", value=3000, probability=25
+        )
+        _create_deal(
+            mcp, title="Proposal A", stage="proposal", value=5000, probability=50
+        )
 
         summary = _run(_call_tool(mcp, "pipeline_summary", {}))
         assert _stage_row(summary, "lead")["count"] == 1
@@ -358,7 +365,9 @@ class TestPipelineSummary:
         _create_deal(mcp, title="Prop", stage="proposal", value=2000, probability=50)
         _create_deal(mcp, title="Neg", stage="negotiation", value=4000, probability=75)
         # Closed: 2 won, 1 lost => win rate = 2/3 ~= 67%
-        _create_deal(mcp, title="Won1", stage="closed_won", value=10000, probability=100)
+        _create_deal(
+            mcp, title="Won1", stage="closed_won", value=10000, probability=100
+        )
         _create_deal(mcp, title="Won2", stage="closed_won", value=8000, probability=100)
         _create_deal(mcp, title="Lost", stage="closed_lost", value=5000, probability=0)
 
@@ -427,6 +436,100 @@ class TestLinkDealsToContacts:
 
         fetched = _run(_call_tool(mcp, "get_deal", {"deal_id": deal["id"]}))
         assert _deal_belongs_to_targets(fetched) == []
+
+    @pytest.mark.parametrize(
+        "names", [("Alex Morgan", " alex MORGAN "), ("Straße", "STRASSE")]
+    )
+    def test_leaves_ambiguous_contact_name_unlinked(self, mcp, app, names):
+        for name in names:
+            app.create_entity("contact", {"name": name})
+        deal = app.create_entity(
+            "deal",
+            {
+                "title": "Unresolved Deal",
+                "stage": "qualified",
+                "contact_name": names[0],
+            },
+        )
+
+        result = _run(_call_tool(mcp, "link_deals_to_contacts", {}))
+
+        assert result["linked"] == 0
+        assert result["skipped"] == 1
+        assert any("ambiguous" in detail["status"] for detail in result["details"])
+        assert _deal_belongs_to_targets(app.get_entity("deal", deal["id"])) == []
+
+    @pytest.mark.parametrize("has_active_match", [False, True])
+    def test_archived_contacts_do_not_match_or_make_active_match_ambiguous(
+        self, mcp, app, has_active_match
+    ):
+        archived = app.create_entity("contact", {"name": "Alex Morgan"})
+        app.update_entity("contact", archived["id"], {"status": "archived"})
+        active = (
+            app.create_entity("contact", {"name": "Alex Morgan"})
+            if has_active_match
+            else None
+        )
+        deal = app.create_entity(
+            "deal",
+            {
+                "title": "Active contact's deal",
+                "stage": "qualified",
+                "contact_name": "Alex Morgan",
+            },
+        )
+
+        result = _run(_call_tool(mcp, "link_deals_to_contacts", {}))
+
+        assert result["linked"] == (1 if has_active_match else 0)
+        targets = _deal_belongs_to_targets(app.get_entity("deal", deal["id"]))
+        assert targets == ([active["id"]] if active else [])
+
+    def test_duplicate_beyond_first_thousand_contacts_stays_unlinked(self, mcp, app):
+        older = app.create_entity("contact", {"name": "Alex Morgan"})
+        for index in range(999):
+            app.create_entity("contact", {"name": f"Unrelated contact {index}"})
+        app.create_entity("contact", {"name": " alex MORGAN "})
+        deal = app.create_entity(
+            "deal",
+            {
+                "title": "Ambiguous large-library deal",
+                "stage": "qualified",
+                "contact_name": "Alex Morgan",
+            },
+        )
+        first_page = app.list_entities("contact", limit=1000)
+        assert len(first_page) == 1000
+        assert older["id"] not in {contact["id"] for contact in first_page}
+
+        result = _run(_call_tool(mcp, "link_deals_to_contacts", {}))
+
+        assert result["linked"] == 0
+        assert any("ambiguous" in detail["status"] for detail in result["details"])
+        assert _deal_belongs_to_targets(app.get_entity("deal", deal["id"])) == []
+
+    def test_unique_contact_beyond_first_thousand_can_be_linked(self, mcp, app):
+        older = app.create_entity("contact", {"name": "Older unique contact"})
+        for index in range(1000):
+            app.create_entity("contact", {"name": f"Unrelated contact {index}"})
+        deal = app.create_entity(
+            "deal",
+            {
+                "title": "Older contact's deal",
+                "stage": "qualified",
+                "contact_name": "Older unique contact",
+            },
+        )
+        assert older["id"] not in {
+            contact["id"] for contact in app.list_entities("contact", limit=1000)
+        }
+
+        result = _run(_call_tool(mcp, "link_deals_to_contacts", {}))
+
+        assert result["linked"] == 1
+        assert _deal_belongs_to_targets(app.get_entity("deal", deal["id"])) == [
+            older["id"]
+        ]
 
     def test_startup_hook_backfills_relationships_idempotently(self, mcp, app):
         """Mirrors the server-startup hook: deals seeded with ``contact_name``
@@ -528,14 +631,18 @@ class TestContactTimeline:
             )
         )
 
-        timeline = _run(_call_tool(mcp, "contact_timeline", {"contact_id": contact["id"]}))
+        timeline = _run(
+            _call_tool(mcp, "contact_timeline", {"contact_id": contact["id"]})
+        )
         summaries = [entry["summary"] for entry in timeline["interactions"]]
         assert summaries == ["Newest", "Middle", "Oldest"]
         assert timeline["total"] == 3
 
     def test_empty_timeline_returns_empty_list(self, mcp):
         contact = _create_contact(mcp, name="Ghost Contact")
-        timeline = _run(_call_tool(mcp, "contact_timeline", {"contact_id": contact["id"]}))
+        timeline = _run(
+            _call_tool(mcp, "contact_timeline", {"contact_id": contact["id"]})
+        )
         assert timeline["interactions"] == []
         assert timeline["total"] == 0
 

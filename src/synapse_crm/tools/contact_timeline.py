@@ -2,17 +2,17 @@
 
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 
 def contact_timeline(
-    app: UpjackApp,
+    app: CRMStore,
     contact_id: str,
 ) -> dict[str, Any]:
     """Get the full interaction history for a contact.
 
     Args:
-        app: UpjackApp instance.
+        app: CRMStore instance.
         contact_id: ID of the contact.
 
     Returns:
@@ -22,11 +22,13 @@ def contact_timeline(
     # Validate contact exists
     try:
         contact = app.get_entity("contact", contact_id)
-    except FileNotFoundError:
+    except (FileNotFoundError, ValueError):
         return {"error": f"Contact {contact_id} not found"}
 
     # Query interactions linked to this contact via relationship index
-    interactions = app.query_by_relationship("interaction", "belongs_to", contact_id, limit=100)
+    interactions = app.query_by_relationship(
+        "interaction", "belongs_to", contact_id, limit=None
+    )
 
     # Sort by occurred_at descending (newest first)
     interactions.sort(
@@ -50,12 +52,14 @@ def contact_timeline(
 
     # Build next_step
     if not timeline:
-        next_step = f"No interactions logged for {contact.get('name')}. Consider reaching out."
+        next_step = (
+            f"No interactions logged for {contact.get('name')}. Consider reaching out."
+        )
     else:
         latest = timeline[0]
         next_step = (
             f"Last interaction: {latest['type']} on {latest.get('occurred_at', 'unknown date')} "
-            f"— \"{latest.get('summary', '')}\""
+            f'— "{latest.get("summary", "")}"'
         )
 
     return {

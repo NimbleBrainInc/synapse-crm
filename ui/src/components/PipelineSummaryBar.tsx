@@ -1,5 +1,6 @@
 import type { PipelineSummaryData } from "../hooks/usePipelineSummary";
 import { useStyleTokens } from "../tokens";
+import { tokens as ui } from "@nimblebrain/synapse/ui";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -35,7 +36,7 @@ export function PipelineSummaryBar({
       style={{
         display: "flex",
         gap: "1.5rem",
-        padding: "0.75rem 1rem",
+        padding: `0.75rem ${ui.gutter}`,
         background: tokens.bgRaised,
         borderBottom: `1px solid ${tokens.border}`,
         flexWrap: "wrap",

@@ -3,12 +3,19 @@
   "title": "CRM Interaction",
   "description": "A logged activity (meeting, email, call, note) linked to a contact.",
   "allOf": [
-    { "$ref": "https://upjack.dev/schemas/v1/upjack-entity.schema.json" }
+    {
+      "$ref": "entity.schema.json"
+    }
   ],
   "properties": {
     "interaction_type": {
       "type": "string",
-      "enum": ["meeting", "email", "call", "note"],
+      "enum": [
+        "meeting",
+        "email",
+        "call",
+        "note"
+      ],
       "description": "Type of interaction"
     },
     "summary": {
@@ -35,5 +42,8 @@
       "description": "Denormalized contact name for quick display"
     }
   },
-  "required": ["interaction_type", "summary"]
+  "required": [
+    "interaction_type",
+    "summary"
+  ]
 }
