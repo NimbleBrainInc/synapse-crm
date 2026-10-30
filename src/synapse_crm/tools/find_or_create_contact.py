@@ -1,5 +1,6 @@
 """Find an existing contact by name/email, or create one if none exists."""
 
+import sys
 from typing import Any
 
 from upjack.app import UpjackApp
@@ -18,8 +19,12 @@ def find_or_create_contact(
     """Find a contact by email or name, or create one if no match exists.
 
     Search priority:
-    1. Exact email match (if email provided)
-    2. Name substring match
+    1. Exact email match, ignoring case and surrounding spaces (if email provided)
+    2. Exact name match, ignoring case and surrounding spaces. With an email,
+       only contacts that have no email yet are considered, so a contact
+       first saved by name alone gets the email filled in.
+
+    More than one active match returns an error and changes nothing.
 
     If a match is found, updates it with any new non-empty fields.
     If no match, creates a new contact.
@@ -28,27 +33,33 @@ def find_or_create_contact(
         Dict with 'contact' (the entity), 'action' ('found' or 'created'),
         and 'next_step'. Returns {"error": "..."} on failure.
     """
-    existing = None
+    name, email = name.strip(), email.strip()
+    if not name and not email:
+        return {"error": "A contact name is required."}
+    # Check every active contact: a limited search page cannot show that a
+    # name or email identifies exactly one person.
+    contacts = app.list_entities("contact", limit=sys.maxsize)
 
-    # 1. Search by email (strongest signal)
+    def _same(value: Any, wanted: str) -> bool:
+        return (value or "").strip().casefold() == wanted.casefold()
+
+    matches: list[dict[str, Any]] = []
+    field, value = "email", email
     if email:
-        results = app.search_entities("contact", query=email, limit=5)
-        for r in results:
-            if r.get("email", "").lower() == email.lower() and r.get("status") == "active":
-                existing = r
-                break
-
-    # 2. Fall back to name search
-    if not existing and name:
-        results = app.search_entities("contact", query=name, limit=10)
-        for r in results:
-            if r.get("status") != "active":
-                continue
-            # Case-insensitive name match (exact or contained)
-            r_name = r.get("name", "").lower()
-            if name.lower() == r_name or name.lower() in r_name or r_name in name.lower():
-                existing = r
-                break
+        matches = [c for c in contacts if _same(c.get("email"), email)]
+    if not matches and name:
+        field, value = "name", name
+        matches = [
+            c
+            for c in contacts
+            if _same(c.get("name"), name) and not (email and c.get("email"))
+        ]
+    if len(matches) > 1:
+        return {
+            "error": f"Multiple active contacts match {field} '{value}'. "
+            "Choose the contact by ID before updating it."
+        }
+    existing = matches[0] if matches else None
 
     if existing:
         # Update with any new non-empty fields
@@ -80,6 +91,8 @@ def find_or_create_contact(
         }
 
     # 3. Create new contact
+    if not name:
+        return {"error": "A contact name is required."}
     data: dict[str, Any] = {"name": name}
     if email:
         data["email"] = email

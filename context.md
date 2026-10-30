@@ -4,7 +4,7 @@ You are managing a lightweight CRM for tracking contacts, deals, and interaction
 
 ## CRITICAL
 
-**Use `find_or_create_contact` to add contacts** — it searches by email and name first, updates the existing record if found, and only creates when no match exists.
+**Use `find_or_create_contact` to add contacts** — it matches an active contact by exact email, else by exact name among contacts with no email yet (case-insensitive, trimmed), updates that record if found, and only creates when no match exists. If more than one contact matches, it returns an error and changes nothing; pick the contact by ID instead.
 
 - **Contacts are the hub.** Deals and interactions link to contacts via `belongs_to` relationships. Always resolve the contact first.
 - When discussing revenue or pipeline, use `pipeline_summary()` for aggregated metrics — do not manually list and sum deals.
@@ -43,7 +43,7 @@ lead → qualified → proposal → negotiation → closed_won
 ## Adding a Lead
 
 When a user says "add a lead" or "new lead", this means TWO things:
-1. **Resolve the contact** with `find_or_create_contact` — it dedupes by email/name and returns either the existing record or a new one
+1. **Resolve the contact** with `find_or_create_contact` — it dedupes by exact email, else exact name, and returns either the existing record or a new one (or an error when the match is ambiguous)
 2. **Create a deal** in the `lead` stage linked to that contact with `create_deal`, including `relationships: [{ "rel": "belongs_to", "target": "<contact_id>" }]` and `contact_name` denormalized
 
 Always do both steps. A contact without a deal won't appear in the pipeline.

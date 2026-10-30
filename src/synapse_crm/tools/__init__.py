@@ -70,8 +70,10 @@ def register_tools(mcp, app):
         name="find_or_create_contact",
         description=(
             "ALWAYS use this instead of create_contact. Searches for an existing "
-            "contact by email (exact) or name (fuzzy) and returns it, updating any "
-            "new fields. Only creates a new contact if no match is found. Prevents "
+            "active contact by exact email, else by exact name among contacts with no "
+            "email yet (both case-insensitive and trimmed), and returns it, updating "
+            "any new fields. Ambiguous matches return an error without changing a "
+            "contact. Only creates a new contact if no match is found. Prevents "
             "duplicates."
         ),
     )
