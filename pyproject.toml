@@ -4,6 +4,8 @@ version = "0.3.2"
 description = "Lightweight CRM with contact management, deal pipeline, and agent-driven follow-ups"
 requires-python = ">=3.13"
 dependencies = [
+    "jsonschema>=4.26",
+    "python-ulid>=3.1",
     "upjack[mcp]>=0.5.1",
 ]
 

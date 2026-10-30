@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CRM record",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z]{2,4}_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "contact",
+        "deal",
+        "interaction"
+      ]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "created_by": {
+      "type": "string",
+      "enum": [
+        "user",
+        "agent",
+        "system",
+        "ingestion",
+        "schedule"
+      ],
+      "default": "agent"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived",
+        "deleted"
+      ],
+      "default": "active"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$",
+        "maxLength": 64
+      },
+      "maxItems": 20,
+      "uniqueItems": true,
+      "default": []
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "origin": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rel": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^[a-z]{2,4}_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rel",
+          "target"
+        ]
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "version",
+    "created_at",
+    "updated_at"
+  ]
+}
