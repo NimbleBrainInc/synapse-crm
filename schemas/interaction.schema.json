@@ -35,5 +35,21 @@
       "description": "Denormalized contact name for quick display"
     }
   },
-  "required": ["interaction_type", "summary"]
+  "required": ["interaction_type", "summary"],
+  "examples": [
+    {
+      "interaction_type": "email",
+      "summary": "Sent pilot pricing and proposed start dates",
+      "occurred_at": "2026-04-14T16:30:00Z",
+      "contact_name": "Alice Chen"
+    },
+    {
+      "interaction_type": "meeting",
+      "summary": "Kickoff call to scope the Q2 pilot",
+      "details": "Agreed on three pilot teams. Alice will confirm the budget owner.",
+      "occurred_at": "2026-04-16T18:00:00Z",
+      "follow_up_date": "2026-04-20",
+      "contact_name": "Alice Chen"
+    }
+  ]
 }

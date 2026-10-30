@@ -38,5 +38,15 @@
       "description": "How this contact was acquired"
     }
   },
-  "required": ["name"]
+  "required": ["name"],
+  "examples": [
+    {
+      "name": "Alice Chen",
+      "email": "alice.chen@example.com",
+      "phone": "+1 415-555-0142",
+      "company": "Acme Corp",
+      "role": "VP of Operations",
+      "lead_source": "referral"
+    }
+  ]
 }
