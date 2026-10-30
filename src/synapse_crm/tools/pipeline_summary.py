@@ -1,5 +1,6 @@
 """Aggregate pipeline metrics: deals by stage, total value, win rate."""
 
+import sys
 from typing import Any
 
 from upjack.app import UpjackApp
@@ -17,7 +18,7 @@ def pipeline_summary(app: UpjackApp) -> dict[str, Any]:
         Context dict with stages array, totals, weighted value, win rate,
         and next_step.
     """
-    all_deals = app.list_entities("deal", limit=1000)
+    all_deals = app.list_entities("deal", limit=sys.maxsize)
 
     # Group by stage
     stages: dict[str, dict[str, Any]] = {}
