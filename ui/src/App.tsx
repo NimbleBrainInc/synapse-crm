@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { useTheme, useVisibleState } from "@nimblebrain/synapse/react";
+import { useTheme, useModelContext } from "@nimblebrain/synapse/react";
 import { useDeals } from "./hooks/useDeals";
 import { useContacts } from "./hooks/useContacts";
 import { usePipelineSummary } from "./hooks/usePipelineSummary";
@@ -136,7 +136,7 @@ export default function App() {
 
   // Push visible state to the agent. IDs only — agent fetches the rest via
   // tools. Avoid leaking notes / titles / freeform text here.
-  const pushState = useVisibleState();
+  const pushState = useModelContext();
   useEffect(() => {
     const activeDealCount = deals.filter(
       (d) => d.status === "active" && !d.stage.startsWith("closed_"),

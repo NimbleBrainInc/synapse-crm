@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSynapse, useDataSync } from "@nimblebrain/synapse/react";
+import { useApp, useDataSync } from "@nimblebrain/synapse/react";
 
 export interface StageSummary {
   stage: string;
@@ -24,7 +24,7 @@ export interface PipelineSummaryData {
 }
 
 export function usePipelineSummary() {
-  const synapse = useSynapse();
+  const app = useApp();
   const [summary, setSummary] = useState<PipelineSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,10 +34,7 @@ export function usePipelineSummary() {
     const id = ++callId.current;
     setError(null);
     try {
-      const result = await synapse.callTool<
-        Record<string, unknown>,
-        PipelineSummaryData
-      >("pipeline_summary");
+      const result = await app.callTool<PipelineSummaryData>("pipeline_summary");
       if (id !== callId.current) return;
       if (result.isError) {
         setError(String(result.data));
@@ -50,15 +47,13 @@ export function usePipelineSummary() {
     } finally {
       if (id === callId.current) setLoading(false);
     }
-  }, [synapse]);
+  }, [app]);
 
   useEffect(() => {
-    synapse.ready.then(() => refresh());
-  }, [synapse, refresh]);
-
-  useDataSync(() => {
     refresh();
-  });
+  }, [refresh]);
+
+  useDataSync(refresh);
 
   return { summary, loading, error, refresh } as const;
 }

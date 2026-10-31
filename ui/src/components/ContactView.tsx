@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import type React from "react";
-import { useSynapse, useDataSync } from "@nimblebrain/synapse/react";
+import { useApp, useDataSync } from "@nimblebrain/synapse/react";
 import { useStyleTokens } from "../tokens";
 import { usePanelHeader, type PanelStackController } from "./DetailPanel";
 import type { Contact } from "../hooks/useContacts";
@@ -152,7 +152,7 @@ export function ContactView({
   onChanged: () => void;
 }): React.ReactElement {
   const tokens = useStyleTokens();
-  const synapse = useSynapse();
+  const app = useApp();
 
   // -------------------------------------------------------------------------
   // Data state — fetched in view & edit modes
@@ -189,7 +189,7 @@ export function ContactView({
     setLoadingContact(true);
     setContactError(null);
     try {
-      const result = await synapse.callTool("get_contact", {
+      const result = await app.callTool("get_contact", {
         contact_id: contactId,
       });
       if (seq !== contactSeqRef.current) return;
@@ -206,7 +206,7 @@ export function ContactView({
     } finally {
       if (seq === contactSeqRef.current) setLoadingContact(false);
     }
-  }, [synapse, contactId]);
+  }, [app, contactId]);
 
   const loadDeals = useCallback(async () => {
     if (!contactId) return;
@@ -214,7 +214,7 @@ export function ContactView({
     setLoadingDeals(true);
     setDealsError(null);
     try {
-      const result = await synapse.callTool("query_deals_by_relationship", {
+      const result = await app.callTool("query_deals_by_relationship", {
         rel: "belongs_to",
         target_id: contactId,
       });
@@ -235,7 +235,7 @@ export function ContactView({
     } finally {
       if (seq === dealsSeqRef.current) setLoadingDeals(false);
     }
-  }, [synapse, contactId]);
+  }, [app, contactId]);
 
   const loadTimeline = useCallback(async () => {
     if (!contactId) return;
@@ -243,7 +243,7 @@ export function ContactView({
     setLoadingTimeline(true);
     setTimelineError(null);
     try {
-      const result = await synapse.callTool("contact_timeline", {
+      const result = await app.callTool("contact_timeline", {
         contact_id: contactId,
       });
       if (seq !== timelineSeqRef.current) return;
@@ -264,27 +264,23 @@ export function ContactView({
     } finally {
       if (seq === timelineSeqRef.current) setLoadingTimeline(false);
     }
-  }, [synapse, contactId]);
+  }, [app, contactId]);
 
   // Fetch contact whenever id changes (view + edit modes).
   useEffect(() => {
     if (mode === "create" || !contactId) return;
-    synapse.ready.then(() => {
-      loadContact();
-    });
-  }, [synapse, mode, contactId, loadContact]);
+    loadContact();
+  }, [mode, contactId, loadContact]);
 
   // Fetch deals + timeline only in view mode (edit hides those sections).
   useEffect(() => {
     if (mode !== "view" || !contactId) return;
-    synapse.ready.then(() => {
-      loadDeals();
-      loadTimeline();
-    });
-  }, [synapse, mode, contactId, loadDeals, loadTimeline]);
+    loadDeals();
+    loadTimeline();
+  }, [mode, contactId, loadDeals, loadTimeline]);
 
-  // Refresh on platform data-changed (only relevant in view mode where we
-  // display deals + timeline).
+  // Refresh when the server announces a change (only relevant in view mode
+  // where we display deals + timeline).
   useDataSync(() => {
     if (mode === "create" || !contactId) return;
     loadContact();
@@ -363,7 +359,7 @@ export function ContactView({
       sendIfChanged("notes");
       sendIfChanged("lead_source");
 
-      const result = await synapse.callTool("update_contact", payload);
+      const result = await app.callTool("update_contact", payload);
       if (result.isError) {
         setSaveError(formatToolError(result.data, "Failed to update contact"));
         return;
@@ -377,7 +373,7 @@ export function ContactView({
     } finally {
       setSaving(false);
     }
-  }, [contactId, contact, fields, originalFields, synapse, onChanged, controller]);
+  }, [contactId, contact, fields, originalFields, app, onChanged, controller]);
 
   const handleCreate = useCallback(async () => {
     if (!fields.name.trim()) {
@@ -395,7 +391,7 @@ export function ContactView({
       if (fields.notes) payload.notes = fields.notes;
       if (fields.lead_source) payload.lead_source = fields.lead_source;
 
-      const result = await synapse.callTool(
+      const result = await app.callTool(
         "find_or_create_contact",
         payload,
       );
@@ -418,7 +414,7 @@ export function ContactView({
     } finally {
       setSaving(false);
     }
-  }, [fields, synapse, onChanged, controller]);
+  }, [fields, app, onChanged, controller]);
 
   const handleCancel = useCallback(() => {
     if (isDirty) {
@@ -462,7 +458,7 @@ export function ContactView({
     setLogSaving(true);
     setLogError(null);
     try {
-      const result = await synapse.callTool("log_interaction", {
+      const result = await app.callTool("log_interaction", {
         contact_id: contactId,
         interaction_type: logType,
         summary: logSummary.trim(),
@@ -492,7 +488,7 @@ export function ContactView({
     logSummary,
     logDetails,
     logFollowUp,
-    synapse,
+    app,
     loadTimeline,
     onChanged,
   ]);

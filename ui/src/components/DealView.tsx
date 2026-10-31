@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import type React from "react";
-import { useSynapse } from "@nimblebrain/synapse/react";
+import { useApp } from "@nimblebrain/synapse/react";
 import { useStyleTokens } from "../tokens";
 import { usePanelHeader } from "./DetailPanel";
 import type { PanelStackController } from "./DetailPanel";
@@ -92,7 +92,7 @@ export function DealView({
   controller,
   onChanged,
 }: DealViewProps): React.ReactElement {
-  const synapse = useSynapse();
+  const app = useApp();
   const tokens = useStyleTokens();
 
   // Fetched deal (used in view/edit). Null while loading or in create mode.
@@ -127,10 +127,7 @@ export function DealView({
     setLoading(true);
     setFetchError(null);
     try {
-      const result = await synapse.callTool<
-        { deal_id: string },
-        Deal
-      >("get_deal", { deal_id: dealId });
+      const result = await app.callTool<Deal>("get_deal", { deal_id: dealId });
       if (result.isError) {
         setFetchError(formatToolError(result.data, "Failed to load deal"));
         setDeal(null);
@@ -154,7 +151,7 @@ export function DealView({
     } finally {
       setLoading(false);
     }
-  }, [synapse, dealId]);
+  }, [app, dealId]);
 
   useEffect(() => {
     if (mode === "create") {
@@ -168,8 +165,8 @@ export function DealView({
       setLoading(false);
       return;
     }
-    synapse.ready.then(() => loadDeal());
-  }, [synapse, mode, loadDeal]);
+    loadDeal();
+  }, [mode, loadDeal]);
 
   // -------------------------------------------------------------------------
   // Fetch contacts list (create mode only — for the datalist picker)
@@ -178,10 +175,9 @@ export function DealView({
   useEffect(() => {
     if (mode !== "create") return;
     let cancelled = false;
-    synapse.ready.then(async () => {
+    (async () => {
       try {
-        const result = await synapse.callTool<
-          Record<string, unknown>,
+        const result = await app.callTool<
           { entities?: Contact[] } | Contact[]
         >("list_contacts");
         if (cancelled || result.isError) return;
@@ -191,11 +187,11 @@ export function DealView({
       } catch {
         // non-critical — datalist just won't have suggestions
       }
-    });
+    })();
     return () => {
       cancelled = true;
     };
-  }, [synapse, mode]);
+  }, [app, mode]);
 
   // Resolve a typed contact name back to a contact id (exact match, case-insensitive)
   const resolvedContactId = useMemo<string | null>(() => {
@@ -234,7 +230,7 @@ export function DealView({
       setStageMoving(true);
       setFetchError(null);
       try {
-        const result = await synapse.callTool("move_deal_stage", {
+        const result = await app.callTool("move_deal_stage", {
           deal_id: deal.id,
           stage: newStage,
         });
@@ -252,7 +248,7 @@ export function DealView({
         setStageMoving(false);
       }
     },
-    [synapse, deal, onChanged, loadDeal],
+    [app, deal, onChanged, loadDeal],
   );
 
   // -------------------------------------------------------------------------
@@ -295,7 +291,7 @@ export function DealView({
         payload.close_date = newDate === undefined ? null : newDate;
       }
 
-      const result = await synapse.callTool("update_deal", payload);
+      const result = await app.callTool("update_deal", payload);
       if (result.isError) {
         setSubmitError(formatToolError(result.data, "Failed to save deal"));
         return;
@@ -316,7 +312,7 @@ export function DealView({
     valueStr,
     probabilityStr,
     closeDate,
-    synapse,
+    app,
     onChanged,
     controller,
   ]);
@@ -349,10 +345,7 @@ export function DealView({
         ];
       }
 
-      const result = await synapse.callTool<typeof payload, Deal>(
-        "create_deal",
-        payload,
-      );
+      const result = await app.callTool<Deal>("create_deal", payload);
       if (result.isError) {
         setSubmitError(formatToolError(result.data, "Failed to create deal"));
         return;
@@ -384,7 +377,7 @@ export function DealView({
     closeDate,
     contactName,
     resolvedContactId,
-    synapse,
+    app,
     onChanged,
     controller,
   ]);
