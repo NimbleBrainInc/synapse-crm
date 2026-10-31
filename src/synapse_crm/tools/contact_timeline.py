@@ -1,5 +1,6 @@
 """Retrieve all interactions for a contact in reverse chronological order."""
 
+import sys
 from typing import Any
 
 from upjack.app import UpjackApp
@@ -26,7 +27,9 @@ def contact_timeline(
         return {"error": f"Contact {contact_id} not found"}
 
     # Query interactions linked to this contact via relationship index
-    interactions = app.query_by_relationship("interaction", "belongs_to", contact_id, limit=100)
+    interactions = app.query_by_relationship(
+        "interaction", "belongs_to", contact_id, limit=sys.maxsize
+    )
 
     # Sort by occurred_at descending (newest first)
     interactions.sort(
