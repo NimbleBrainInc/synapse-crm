@@ -8,6 +8,8 @@ import logging
 import os
 from pathlib import Path
 
+from fastmcp.server.middleware import Middleware
+from mcp.types import ResourceListChangedNotification
 from upjack.app import UpjackApp
 from upjack.server import create_server
 
@@ -37,6 +39,63 @@ _app = UpjackApp.from_manifest(manifest_path, root=workspace_root)
 
 # Register custom domain tools
 register_tools(mcp, _app)
+
+# Tools that change CRM records, beyond the create_*, update_* and delete_* CRUD tools.
+WRITE_TOOLS = frozenset(
+    {
+        "find_or_create_contact",
+        "log_interaction",
+        "move_deal_stage",
+        "link_deals_to_contacts",
+        "seed_data",
+        "add_field",
+    }
+)
+
+
+def is_write_tool(name: str) -> bool:
+    """Whether a call to the named tool may change CRM records."""
+    return name in WRITE_TOOLS or name.startswith(("create_", "update_", "delete_"))
+
+
+def is_error_result(content: object) -> bool:
+    """Whether a tool returned the domain error shape, {"error": ...}.
+
+    add_field also adds "diagnostics". A record may carry its own "error"
+    field, so the key alone does not mark a failure.
+    """
+    return (
+        isinstance(content, dict)
+        and "error" in content
+        and set(content) <= {"error", "diagnostics"}
+    )
+
+
+class NotifyAfterWrites(Middleware):
+    """Send resources/list_changed once after each successful write tool call.
+
+    A UI on @nimblebrain/synapse 0.35 or later refetches its data when this
+    notification arrives. Reads send nothing. A call that raises, or that
+    returns the domain error shape, sends nothing. The notification is best
+    effort: the write is already saved, so a failed send is logged and the
+    call still reports success.
+    """
+
+    async def on_call_tool(self, context, call_next):
+        result = await call_next(context)
+        ctx = context.fastmcp_context
+        name = context.message.name
+        if ctx and is_write_tool(name) and not is_error_result(result.structured_content):
+            try:
+                await ctx.send_notification(ResourceListChangedNotification())
+            except Exception:
+                logger.warning(
+                    "Could not send resources/list_changed after %s", name, exc_info=True
+                )
+        return result
+
+
+mcp.add_middleware(NotifyAfterWrites())
 
 # Startup hook: idempotently backfill ``belongs_to`` edges from ``deal.contact_name``
 # so seeded deals show up under their contacts immediately. Re-running is a no-op
