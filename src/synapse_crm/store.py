@@ -96,10 +96,17 @@ class CRMStore:
             raise ValueError("Path escapes workspace root")
         return path
 
-    def _entity_path(self, kind: str, entity_id: str) -> Path:
+    def _entity_path(self, kind: str, entity_id: Any) -> Path:
         plural, prefix = _ENTITIES[kind]
-        if not re.fullmatch(prefix + r"_[0-9A-HJKMNP-TV-Z]{26}", entity_id):
+        if not isinstance(entity_id, str) or not re.fullmatch(
+            prefix + r"_[0-9A-HJKMNP-TV-Z]{26}", entity_id
+        ):
             raise ValueError(f"Invalid {kind} ID")
+        try:
+            # The pattern admits suffixes past 128 bits; the parser rejects them.
+            ULID.from_str(entity_id[len(prefix) + 1 :])
+        except ValueError:
+            raise ValueError(f"Invalid {kind} ID") from None
         return self._path(f"apps/crm/data/{plural}/{entity_id}.json")
 
     @staticmethod
@@ -174,8 +181,9 @@ class CRMStore:
         """
         with self._lock:
             data = deepcopy(data)
-            supplied_id = data.pop("id", None)
-            entity_id = supplied_id or f"{_ENTITIES[kind][1]}_{ULID()}"
+            entity_id = (
+                data.pop("id") if "id" in data else f"{_ENTITIES[kind][1]}_{ULID()}"
+            )
             path = self._entity_path(kind, entity_id)
             if path.exists():
                 raise ValueError(f"Entity already exists: {entity_id}")

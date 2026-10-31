@@ -48,7 +48,17 @@ def test_invalid_updates_leave_saved_record_unchanged(tmp_path):
 
 @pytest.mark.parametrize(
     "invalid",
-    ["../../../../../outside", "dl_../../outside", "ct_" + "0" * 26, "dl_" + "Z" * 27],
+    [
+        "../../../../../outside",
+        "dl_../../outside",
+        "ct_" + "0" * 26,
+        "dl_" + "Z" * 27,
+        "dl_" + "Z" * 26,
+        "",
+        None,
+        False,
+        0,
+    ],
 )
 def test_invalid_ids_never_become_paths(tmp_path, invalid):
     store = CRMStore(tmp_path / "workspace", ROOT)
