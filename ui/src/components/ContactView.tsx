@@ -399,8 +399,12 @@ export function ContactView({
         setSaveError(formatToolError(result.data, "Failed to create contact"));
         return;
       }
-      const created = result.data as Contact | { id?: string };
-      const newId = (created as Contact).id ?? (created as { id?: string }).id;
+      const created = result.data as { contact?: Contact; error?: unknown } | null;
+      if (created?.error) {
+        setSaveError(formatToolError(created, "Failed to create contact"));
+        return;
+      }
+      const newId = created?.contact?.id;
       if (!newId) {
         setSaveError("Server did not return a contact id");
         return;
