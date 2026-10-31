@@ -97,3 +97,31 @@ def test_blank_name_with_known_email_finds_contact(mcp, app):
     )
     assert result["action"] == "found"
     assert result["contact"]["id"] == original["id"]
+
+
+def test_duplicate_exact_name_is_ambiguous_without_writes(mcp, app):
+    records = [app.create_entity("contact", {"name": "Alex Morgan"}) for _ in range(2)]
+    result = _run(
+        _call_tool(
+            mcp,
+            "find_or_create_contact",
+            {"name": "alex morgan", "phone": "555-0100"},
+        )
+    )
+    assert "error" in result
+    assert [app.get_entity("contact", record["id"]) for record in records] == records
+    assert len(app.list_entities("contact")) == 2
+
+
+def test_email_enrichment_of_duplicate_names_is_ambiguous_without_writes(mcp, app):
+    records = [app.create_entity("contact", {"name": "Alex Morgan"}) for _ in range(2)]
+    result = _run(
+        _call_tool(
+            mcp,
+            "find_or_create_contact",
+            {"name": "Alex Morgan", "email": "alex@example.com"},
+        )
+    )
+    assert "error" in result
+    assert [app.get_entity("contact", record["id"]) for record in records] == records
+    assert len(app.list_entities("contact")) == 2
