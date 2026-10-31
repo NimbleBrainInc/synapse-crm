@@ -3,15 +3,17 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type React from "react";
-import { useApp } from "@nimblebrain/synapse/react";
+import { useApp, useDataSync } from "@nimblebrain/synapse/react";
 import { useStyleTokens } from "../tokens";
 import { usePanelHeader } from "./DetailPanel";
 import type { PanelStackController } from "./DetailPanel";
 import type { Deal } from "../hooks/useDeals";
 import type { Contact } from "../hooks/useContacts";
+import { FULL_LIST_LIMIT } from "../limits";
 import { STAGES, STAGE_LABELS, STAGE_COLORS } from "../hooks/useDeals";
 
 // ---------------------------------------------------------------------------
@@ -100,6 +102,8 @@ export function DealView({
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [loading, setLoading] = useState(mode !== "create");
   const [stageMoving, setStageMoving] = useState(false);
+  const dealSeq = useRef(0);
+  const contextSeq = useRef(0);
 
   // Edit/create form state. Strings — coerced at submit time.
   const [title, setTitle] = useState("");
@@ -124,10 +128,12 @@ export function DealView({
 
   const loadDeal = useCallback(async () => {
     if (!dealId) return;
+    const seq = ++dealSeq.current;
     setLoading(true);
     setFetchError(null);
     try {
       const result = await app.callTool<Deal>("get_deal", { deal_id: dealId });
+      if (seq !== dealSeq.current) return;
       if (result.isError) {
         setFetchError(formatToolError(result.data, "Failed to load deal"));
         setDeal(null);
@@ -144,16 +150,20 @@ export function DealView({
         setCloseDate(fetched.close_date ?? "");
       }
     } catch (err) {
+      if (seq !== dealSeq.current) return;
       setFetchError(
         err instanceof Error ? err.message : "Failed to load deal",
       );
       setDeal(null);
     } finally {
-      setLoading(false);
+      if (seq === dealSeq.current) setLoading(false);
     }
   }, [app, dealId]);
 
   useEffect(() => {
+    setStageMoving(false);
+    setSubmitting(false);
+    setSubmitError(null);
     if (mode === "create") {
       // Reset create-mode form when (re-)entering create mode.
       setTitle("");
@@ -161,12 +171,19 @@ export function DealView({
       setProbabilityStr("");
       setCloseDate("");
       setContactName("");
-      setSubmitError(null);
       setLoading(false);
-      return;
+    } else {
+      loadDeal();
     }
-    loadDeal();
+    return () => {
+      dealSeq.current++;
+      contextSeq.current++;
+    };
   }, [mode, loadDeal]);
+
+  useDataSync(() => {
+    if (mode === "view") return loadDeal();
+  });
 
   // -------------------------------------------------------------------------
   // Fetch contacts list (create mode only — for the datalist picker)
@@ -179,7 +196,7 @@ export function DealView({
       try {
         const result = await app.callTool<
           { entities?: Contact[] } | Contact[]
-        >("list_contacts");
+        >("list_contacts", { limit: FULL_LIST_LIMIT });
         if (cancelled || result.isError) return;
         const raw = result.data;
         const list = Array.isArray(raw) ? raw : (raw?.entities ?? []);
@@ -198,8 +215,10 @@ export function DealView({
     if (mode !== "create") return null;
     const needle = contactName.trim().toLowerCase();
     if (!needle) return null;
-    const hit = contacts.find((c) => c.name.toLowerCase() === needle);
-    return hit?.id ?? null;
+    const matches = contacts.filter(
+      (contact) => contact.status === "active" && contact.name.trim().toLowerCase() === needle,
+    );
+    return matches.length === 1 ? matches[0].id : null;
   }, [contactName, contacts, mode]);
 
   // -------------------------------------------------------------------------
@@ -227,6 +246,7 @@ export function DealView({
   const handleMoveStage = useCallback(
     async (newStage: string) => {
       if (!deal || newStage === deal.stage) return;
+      const context = contextSeq.current;
       setStageMoving(true);
       setFetchError(null);
       try {
@@ -234,18 +254,26 @@ export function DealView({
           deal_id: deal.id,
           stage: newStage,
         });
-        if (result.isError) {
-          setFetchError(formatToolError(result.data, "Failed to move stage"));
+        const data = result.data;
+        const domainError = data !== null && typeof data === "object" &&
+          !Array.isArray(data) && "error" in data &&
+          Object.keys(data).every((key) => key === "error" || key === "diagnostics");
+        if (result.isError || domainError) {
+          if (context === contextSeq.current) {
+            setFetchError(formatToolError(result.data, "Failed to move stage"));
+          }
           return;
         }
         onChanged();
-        await loadDeal();
+        if (context === contextSeq.current) await loadDeal();
       } catch (err) {
-        setFetchError(
-          err instanceof Error ? err.message : "Failed to move deal",
-        );
+        if (context === contextSeq.current) {
+          setFetchError(
+            err instanceof Error ? err.message : "Failed to move deal",
+          );
+        }
       } finally {
-        setStageMoving(false);
+        if (context === contextSeq.current) setStageMoving(false);
       }
     },
     [app, deal, onChanged, loadDeal],
@@ -257,6 +285,7 @@ export function DealView({
 
   const handleSave = useCallback(async () => {
     if (mode !== "edit" || !deal) return;
+    const context = contextSeq.current;
     if (!title.trim()) {
       setSubmitError("Title is required");
       return;
@@ -291,19 +320,23 @@ export function DealView({
         payload.close_date = newDate === undefined ? null : newDate;
       }
 
-      const result = await app.callTool("update_deal", payload);
+      const result = await app.callTool<Deal>("update_deal", payload);
       if (result.isError) {
+        if (context !== contextSeq.current) return;
         setSubmitError(formatToolError(result.data, "Failed to save deal"));
         return;
       }
       onChanged();
+      if (context !== contextSeq.current) return;
+      setDeal(result.data?.id === deal.id ? result.data : null);
       controller.replaceTop({ kind: "deal", id: deal.id, mode: "view" });
     } catch (err) {
+      if (context !== contextSeq.current) return;
       setSubmitError(
         err instanceof Error ? err.message : "Failed to save deal",
       );
     } finally {
-      setSubmitting(false);
+      if (context === contextSeq.current) setSubmitting(false);
     }
   }, [
     mode,
@@ -319,6 +352,7 @@ export function DealView({
 
   const handleCreate = useCallback(async () => {
     if (mode !== "create") return;
+    const context = contextSeq.current;
     if (!title.trim()) {
       setSubmitError("Title is required");
       return;
@@ -347,11 +381,13 @@ export function DealView({
 
       const result = await app.callTool<Deal>("create_deal", payload);
       if (result.isError) {
+        if (context !== contextSeq.current) return;
         setSubmitError(formatToolError(result.data, "Failed to create deal"));
         return;
       }
       const created = result.data as Deal | null;
       onChanged();
+      if (context !== contextSeq.current) return;
       if (created?.id) {
         controller.replaceTop({
           kind: "deal",
@@ -363,11 +399,12 @@ export function DealView({
         controller.close();
       }
     } catch (err) {
+      if (context !== contextSeq.current) return;
       setSubmitError(
         err instanceof Error ? err.message : "Failed to create deal",
       );
     } finally {
-      setSubmitting(false);
+      if (context === contextSeq.current) setSubmitting(false);
     }
   }, [
     mode,
@@ -433,11 +470,11 @@ export function DealView({
   const headerTitle =
     mode === "create"
       ? "New Deal"
-      : (deal?.title ?? (loading ? "Loading…" : "Deal"));
+      : (deal?.id === dealId ? deal.title : (loading ? "Loading…" : "Deal"));
 
   const headerActions = useMemo<React.ReactNode>(() => {
     if (mode === "view") {
-      if (!deal) return null;
+      if (!deal || deal.id !== dealId) return null;
       return (
         <button
           type="button"
@@ -511,6 +548,7 @@ export function DealView({
   }, [
     mode,
     deal,
+    dealId,
     submitting,
     title,
     tokens,
@@ -551,7 +589,7 @@ export function DealView({
 
   // ---- View-mode body ----
   if (mode === "view") {
-    if (loading) {
+    if ((loading && !deal) || (deal && deal.id !== dealId)) {
       return (
         <div style={{ color: tokens.fgMuted, fontSize: "0.85rem" }}>
           Loading deal…
@@ -1034,7 +1072,7 @@ export function DealView({
                 marginTop: "0.25rem",
               }}
             >
-              No matching contact — this deal will not be linked.
+              No unique match among active contacts.
             </div>
           )}
         </div>

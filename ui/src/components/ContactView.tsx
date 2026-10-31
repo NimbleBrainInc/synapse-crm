@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import { useApp, useDataSync } from "@nimblebrain/synapse/react";
 import { useStyleTokens } from "../tokens";
 import { usePanelHeader, type PanelStackController } from "./DetailPanel";
 import type { Contact } from "../hooks/useContacts";
+import { FULL_LIST_LIMIT } from "../limits";
 import { STAGE_LABELS, STAGE_COLORS } from "../hooks/useDeals";
 import type { Deal } from "../hooks/useDeals";
 
@@ -174,6 +176,8 @@ export function ContactView({
   );
   const [timelineError, setTimelineError] = useState<string | null>(null);
 
+  const contextSeqRef = useRef(0);
+
   // Per-load seq counters. Each load guards against its own out-of-order
   // resolution: if the panel switches contactId mid-flight, the earlier
   // call's seq mismatches the current and the result is dropped. We use
@@ -186,27 +190,37 @@ export function ContactView({
   const loadContact = useCallback(async () => {
     if (!contactId) return;
     const seq = ++contactSeqRef.current;
+    const context = contextSeqRef.current;
     setLoadingContact(true);
     setContactError(null);
     try {
-      const result = await app.callTool("get_contact", {
+      const result = await app.callTool<Contact>("get_contact", {
         contact_id: contactId,
       });
-      if (seq !== contactSeqRef.current) return;
+      if (seq !== contactSeqRef.current || context !== contextSeqRef.current) return;
       if (result.isError) {
         setContactError(formatToolError(result.data, "Failed to load contact"));
       } else {
-        setContact(result.data as Contact);
+        if (result.data?.id !== contactId) {
+          setContactError("Server did not return this contact");
+          return;
+        }
+        setContact(result.data);
+        if (mode === "edit") {
+          const next = fieldsFromContact(result.data);
+          setFields(next);
+          setOriginalFields(next);
+        }
       }
     } catch (err) {
-      if (seq !== contactSeqRef.current) return;
+      if (seq !== contactSeqRef.current || context !== contextSeqRef.current) return;
       setContactError(
         err instanceof Error ? err.message : "Failed to load contact",
       );
     } finally {
-      if (seq === contactSeqRef.current) setLoadingContact(false);
+      if (seq === contactSeqRef.current && context === contextSeqRef.current) setLoadingContact(false);
     }
-  }, [app, contactId]);
+  }, [app, contactId, mode]);
 
   const loadDeals = useCallback(async () => {
     if (!contactId) return;
@@ -217,6 +231,7 @@ export function ContactView({
       const result = await app.callTool("query_deals_by_relationship", {
         rel: "belongs_to",
         target_id: contactId,
+        limit: FULL_LIST_LIMIT,
       });
       if (seq !== dealsSeqRef.current) return;
       if (result.isError) {
@@ -266,10 +281,17 @@ export function ContactView({
     }
   }, [app, contactId]);
 
-  // Fetch contact whenever id changes (view + edit modes).
-  useEffect(() => {
-    if (mode === "create" || !contactId) return;
-    loadContact();
+  // Reset before paint so cached fields cannot be edited during the entry read.
+  useLayoutEffect(() => {
+    setContact((prev) => prev?.id === contactId ? prev : null);
+    setSaving(false);
+    setSaveError(null);
+    if (mode === "edit") {
+      setFields(EMPTY_FIELDS);
+      setOriginalFields(EMPTY_FIELDS);
+    }
+    if (mode !== "create" && contactId) loadContact();
+    return () => { contextSeqRef.current += 1; };
   }, [mode, contactId, loadContact]);
 
   // Fetch deals + timeline only in view mode (edit hides those sections).
@@ -282,12 +304,8 @@ export function ContactView({
   // Refresh when the server announces a change (only relevant in view mode
   // where we display deals + timeline).
   useDataSync(() => {
-    if (mode === "create" || !contactId) return;
-    loadContact();
-    if (mode === "view") {
-      loadDeals();
-      loadTimeline();
-    }
+    if (mode !== "view" || !contactId) return;
+    return Promise.all([loadContact(), loadDeals(), loadTimeline()]);
   });
 
   // -------------------------------------------------------------------------
@@ -299,16 +317,6 @@ export function ContactView({
     useState<EditableFields>(EMPTY_FIELDS);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  // Hydrate form once the contact loads in edit mode (and reset on contact change).
-  useEffect(() => {
-    if (mode === "edit" && contact) {
-      const next = fieldsFromContact(contact);
-      setFields(next);
-      setOriginalFields(next);
-      setSaveError(null);
-    }
-  }, [mode, contact]);
 
   // Reset form to empty when entering create mode.
   useEffect(() => {
@@ -335,8 +343,11 @@ export function ContactView({
   // Save handlers
   // -------------------------------------------------------------------------
 
+  const editReady = !loadingContact && !contactError && contact?.id === contactId;
+
   const handleSaveEdit = useCallback(async () => {
-    if (!contactId || !contact) return;
+    if (mode !== "edit" || !editReady || !contactId || !contact) return;
+    const context = contextSeqRef.current;
     if (!fields.name.trim()) {
       setSaveError("Name is required");
       return;
@@ -359,23 +370,28 @@ export function ContactView({
       sendIfChanged("notes");
       sendIfChanged("lead_source");
 
-      const result = await app.callTool("update_contact", payload);
+      const result = await app.callTool<Contact>("update_contact", payload);
       if (result.isError) {
+        if (context !== contextSeqRef.current) return;
         setSaveError(formatToolError(result.data, "Failed to update contact"));
         return;
       }
       onChanged();
+      if (context !== contextSeqRef.current) return;
+      if (result.data?.id === contactId) setContact(result.data);
       controller.replaceTop({ kind: "contact", id: contactId, mode: "view" });
     } catch (err) {
+      if (context !== contextSeqRef.current) return;
       setSaveError(
         err instanceof Error ? err.message : "Failed to update contact",
       );
     } finally {
-      setSaving(false);
+      if (context === contextSeqRef.current) setSaving(false);
     }
-  }, [contactId, contact, fields, originalFields, app, onChanged, controller]);
+  }, [mode, editReady, contactId, contact, fields, originalFields, app, onChanged, controller]);
 
   const handleCreate = useCallback(async () => {
+    const context = contextSeqRef.current;
     if (!fields.name.trim()) {
       setSaveError("Name is required");
       return;
@@ -396,27 +412,32 @@ export function ContactView({
         payload,
       );
       if (result.isError) {
+        if (context !== contextSeqRef.current) return;
         setSaveError(formatToolError(result.data, "Failed to create contact"));
         return;
       }
       const created = result.data as { contact?: Contact; error?: unknown } | null;
       if (created?.error) {
+        if (context !== contextSeqRef.current) return;
         setSaveError(formatToolError(created, "Failed to create contact"));
         return;
       }
       const newId = created?.contact?.id;
       if (!newId) {
+        if (context !== contextSeqRef.current) return;
         setSaveError("Server did not return a contact id");
         return;
       }
       onChanged();
+      if (context !== contextSeqRef.current) return;
       controller.replaceTop({ kind: "contact", id: newId, mode: "view" });
     } catch (err) {
+      if (context !== contextSeqRef.current) return;
       setSaveError(
         err instanceof Error ? err.message : "Failed to create contact",
       );
     } finally {
-      setSaving(false);
+      if (context === contextSeqRef.current) setSaving(false);
     }
   }, [fields, app, onChanged, controller]);
 
@@ -445,6 +466,7 @@ export function ContactView({
   const [logFollowUp, setLogFollowUp] = useState("");
   const [logSaving, setLogSaving] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
+  const logContextSeqRef = useRef(0);
 
   // Reset the log form when the contact identity changes — prevents leaking
   // half-typed input from one contact to another if the panel is reused.
@@ -454,11 +476,14 @@ export function ContactView({
     setLogDetails("");
     setLogFollowUp("");
     setLogType("meeting");
+    setLogSaving(false);
     setLogError(null);
+    return () => { logContextSeqRef.current += 1; };
   }, [contactId]);
 
   const handleLogInteraction = useCallback(async () => {
     if (!contactId || !logSummary.trim()) return;
+    const context = logContextSeqRef.current;
     setLogSaving(true);
     setLogError(null);
     try {
@@ -469,22 +494,29 @@ export function ContactView({
         details: logDetails.trim(),
         follow_up_date: logFollowUp,
       });
-      if (result.isError) {
+      const data = result.data;
+      const domainError = data !== null && typeof data === "object" &&
+        !Array.isArray(data) && "error" in data &&
+        Object.keys(data).every((key) => key === "error" || key === "diagnostics");
+      if (result.isError || domainError) {
+        if (context !== logContextSeqRef.current) return;
         setLogError(formatToolError(result.data, "Failed to log interaction"));
       } else {
+        onChanged();
+        if (context !== logContextSeqRef.current) return;
         setShowLogForm(false);
         setLogSummary("");
         setLogDetails("");
         setLogFollowUp("");
         loadTimeline();
-        onChanged();
       }
     } catch (err) {
+      if (context !== logContextSeqRef.current) return;
       setLogError(
         err instanceof Error ? err.message : "Failed to log interaction",
       );
     } finally {
-      setLogSaving(false);
+      if (context === logContextSeqRef.current) setLogSaving(false);
     }
   }, [
     contactId,
@@ -561,18 +593,18 @@ export function ContactView({
             type="button"
             className="crm-touch-target"
             onClick={handleSaveEdit}
-            disabled={saving || !fields.name.trim()}
+            disabled={saving || !editReady || !fields.name.trim()}
             style={{
               ...btnBase,
               background:
-                saving || !fields.name.trim() ? tokens.bgSubtle : tokens.accent,
+                saving || !editReady || !fields.name.trim() ? tokens.bgSubtle : tokens.accent,
               color:
-                saving || !fields.name.trim()
+                saving || !editReady || !fields.name.trim()
                   ? tokens.fgMuted
                   : tokens.accentText,
               border: "none",
               cursor:
-                saving || !fields.name.trim() ? "not-allowed" : "pointer",
+                saving || !editReady || !fields.name.trim() ? "not-allowed" : "pointer",
             }}
           >
             {saving ? "Saving…" : "Save"}
@@ -630,6 +662,7 @@ export function ContactView({
     tokens,
     handleCancel,
     handleSaveEdit,
+    editReady,
     handleCreate,
     saving,
     fields.name,
@@ -698,12 +731,17 @@ export function ContactView({
   }
 
   if (mode === "edit") {
-    if (loadingContact && !contact) {
-      return <LoadingState tokens={tokens} />;
+    if (contactError) {
+      return (
+        <div>
+          <ErrorBanner message={contactError} tokens={tokens} />
+          <button type="button" className="crm-touch-target" onClick={loadContact}>
+            Retry
+          </button>
+        </div>
+      );
     }
-    if (contactError && !contact) {
-      return <ErrorBanner message={contactError} tokens={tokens} />;
-    }
+    if (!editReady) return <LoadingState tokens={tokens} />;
     return (
       <div
         style={{
