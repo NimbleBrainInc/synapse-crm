@@ -1,0 +1,73 @@
+{
+  "apps/crm/data/_index/relations.json": {
+    "reverse": {
+      "ct_01M6720C22S98N4VC7WXTR33SC": [
+        {
+          "source": "dl_01M6720C24Z6CYW78JHKD9KBV3",
+          "rel": "belongs_to"
+        },
+        {
+          "source": "ix_01M6720C27NV7V7G1NARP65CY4",
+          "rel": "belongs_to"
+        }
+      ]
+    }
+  },
+  "apps/crm/data/contacts/ct_01M6720C22S98N4VC7WXTR33SC.json": {
+    "id": "ct_01M6720C22S98N4VC7WXTR33SC",
+    "type": "contact",
+    "version": 1,
+    "created_at": "2026-10-30T18:43:56.610499Z",
+    "updated_at": "2026-10-30T18:43:56.610499Z",
+    "created_by": "agent",
+    "status": "active",
+    "tags": [
+      "fixture"
+    ],
+    "relationships": [],
+    "name": "Mira Patel",
+    "email": "mira@example.com",
+    "company": "Example Co",
+    "custom_field": "retained"
+  },
+  "apps/crm/data/deals/dl_01M6720C24Z6CYW78JHKD9KBV3.json": {
+    "id": "dl_01M6720C24Z6CYW78JHKD9KBV3",
+    "type": "deal",
+    "version": 1,
+    "created_at": "2026-10-30T18:43:56.612433Z",
+    "updated_at": "2026-10-30T18:43:56.612433Z",
+    "created_by": "agent",
+    "status": "active",
+    "tags": [],
+    "relationships": [
+      {
+        "rel": "belongs_to",
+        "target": "ct_01M6720C22S98N4VC7WXTR33SC"
+      }
+    ],
+    "title": "Example renewal",
+    "stage": "qualified",
+    "value": 2000,
+    "contact_name": "Mira Patel"
+  },
+  "apps/crm/data/interactions/ix_01M6720C27NV7V7G1NARP65CY4.json": {
+    "id": "ix_01M6720C27NV7V7G1NARP65CY4",
+    "type": "interaction",
+    "version": 1,
+    "created_at": "2026-10-30T18:43:56.615622Z",
+    "updated_at": "2026-10-30T18:43:56.615622Z",
+    "created_by": "agent",
+    "status": "active",
+    "tags": [],
+    "relationships": [
+      {
+        "rel": "belongs_to",
+        "target": "ct_01M6720C22S98N4VC7WXTR33SC"
+      }
+    ],
+    "interaction_type": "call",
+    "summary": "Synthetic conversation",
+    "occurred_at": "2026-01-05T10:00:00Z",
+    "contact_name": "Mira Patel"
+  }
+}

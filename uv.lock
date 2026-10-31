@@ -1030,6 +1030,8 @@ name = "synapse-crm"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
+    { name = "jsonschema" },
+    { name = "python-ulid" },
     { name = "upjack", extra = ["mcp"] },
 ]
 
@@ -1040,7 +1042,11 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "upjack", extras = ["mcp"], specifier = ">=0.5.1" }]
+requires-dist = [
+    { name = "jsonschema", specifier = ">=4.26" },
+    { name = "python-ulid", specifier = ">=3.1" },
+    { name = "upjack", extras = ["mcp"], specifier = ">=0.5.1" },
+]
 
 [package.metadata.requires-dev]
 dev = [
