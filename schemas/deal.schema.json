@@ -38,5 +38,21 @@
       "description": "Denormalized contact name for quick display"
     }
   },
-  "required": ["title"]
+  "required": ["title"],
+  "examples": [
+    {
+      "title": "Acme Q2 pilot",
+      "stage": "qualified",
+      "value": 25000,
+      "contact_name": "Alice Chen"
+    },
+    {
+      "title": "Acme enterprise rollout",
+      "stage": "negotiation",
+      "value": 180000,
+      "probability": 75,
+      "close_date": "2026-06-30",
+      "contact_name": "Alice Chen"
+    }
+  ]
 }
