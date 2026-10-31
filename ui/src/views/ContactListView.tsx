@@ -124,7 +124,7 @@ export function ContactListView({
     <div
       ref={ref}
       style={{
-        padding: "1rem",
+        padding: `1rem ${tokens.gutter}`,
         display: "flex",
         flexDirection: "column",
         gap: "0.75rem",
