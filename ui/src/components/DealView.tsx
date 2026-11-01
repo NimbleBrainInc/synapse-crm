@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -160,7 +161,8 @@ export function DealView({
     }
   }, [app, dealId]);
 
-  useEffect(() => {
+  // A layout effect, so `loading` is already true when an entry into edit first paints.
+  useLayoutEffect(() => {
     setStageMoving(false);
     setSubmitting(false);
     setSubmitError(null);
@@ -283,8 +285,12 @@ export function DealView({
   // Save / Create handlers (edit + create)
   // -------------------------------------------------------------------------
 
+  // Edit waits for the read of this deal that entering edit started, as ContactView does, so a
+  // draft kept from before Cancel cannot be saved while the form still shows "Loading deal…".
+  const editReady = !loading && !fetchError && deal?.id === dealId;
+
   const handleSave = useCallback(async () => {
-    if (mode !== "edit" || !deal) return;
+    if (mode !== "edit" || !deal || !editReady) return;
     const context = contextSeq.current;
     if (!title.trim()) {
       setSubmitError("Title is required");
@@ -341,6 +347,7 @@ export function DealView({
   }, [
     mode,
     deal,
+    editReady,
     title,
     valueStr,
     probabilityStr,
@@ -493,7 +500,7 @@ export function DealView({
       );
     }
     if (mode === "edit") {
-      const canSave = !submitting && title.trim().length > 0;
+      const canSave = !submitting && editReady && title.trim().length > 0;
       return (
         <>
           <button
@@ -550,6 +557,7 @@ export function DealView({
     deal,
     dealId,
     submitting,
+    editReady,
     title,
     tokens,
     controller,
