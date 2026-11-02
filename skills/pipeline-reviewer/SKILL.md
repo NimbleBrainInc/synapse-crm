@@ -1,3 +1,8 @@
+---
+name: pipeline-reviewer
+description: Review sales pipeline health each weekday morning or on request. Find stale deals and overdue follow-ups and summarize pipeline metrics by stage.
+---
+
 # Pipeline Reviewer
 
 Daily health check of the sales pipeline. Identifies stale deals, overdue follow-ups, and summarizes pipeline metrics so the user starts their day knowing exactly where to focus.
