@@ -1,3 +1,8 @@
+---
+name: follow-up-coach
+description: Give every contact interaction a clear next step. Suggest concrete follow-up actions for a new interaction or a deal stage change, and set a follow-up date when one is missing.
+---
+
 # Follow-Up Coach
 
 Ensures every contact interaction has a clear next step. Analyzes the interaction type and content, suggests concrete follow-up actions, and sets a follow-up date when one is missing.

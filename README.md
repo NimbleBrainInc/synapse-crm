@@ -41,6 +41,8 @@ Lightweight contact and deal tracker with agent-driven follow-ups and pipeline r
 
 ## Skills
 
+The server serves both skills over MCP under SEP-2640 (`io.modelcontextprotocol/skills`): `skills/list` and `skills/get` describe them, and `resources/read` returns `skill://follow-up-coach/SKILL.md` and `skill://pipeline-reviewer/SKILL.md`. Each folder name equals the `name` in its frontmatter, as the SEP requires. Both methods answer on the 2025-11-25 handshake era as well as 2026-07-28 (`src/synapse_crm/skills.py`). The older `upjack://skills/<folder>` resources still return the same files.
+
 ### [Follow-Up Coach](skills/follow-up-coach/SKILL.md)
 
 Ensures every interaction has a concrete next step. Auto-sets follow-up dates based on interaction type (meetings: 2 days, calls: 5 days, emails: 3 days). Triggered on `interaction.created` and `deal.updated` (stage change).
@@ -71,6 +73,7 @@ synapse-crm/
 ├── src/synapse_crm/
 │   ├── __init__.py
 │   ├── server.py
+│   ├── skills.py         # skills/list and skills/get on every protocol era
 │   ├── store.py          # records as JSON files, schema validation, relationship queries
 │   ├── entity_tools.py   # generated CRUD, relationship, seed, schema and index tools
 │   └── tools/

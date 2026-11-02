@@ -13,10 +13,12 @@ from pathlib import Path
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.middleware import Middleware
+from fastmcp.server.providers.skills import SkillsDirectoryProvider
 from mcp.server.auth.middleware.bearer_auth import RequireAuthMiddleware
 from mcp.types import ResourceListChangedNotification
 
 from synapse_crm.entity_tools import instructions, register_entity_tools
+from synapse_crm.skills import SkillsOnEveryEra
 from synapse_crm.store import CRMStore
 from synapse_crm.tools import register_tools
 from synapse_crm.tools.link_deals_to_contacts import link_deals_to_contacts
@@ -50,6 +52,13 @@ mcp = FastMCP(
 store = CRMStore(workspace_root(), _PROJECT_ROOT)
 register_entity_tools(mcp, store, _PROJECT_ROOT)
 register_tools(mcp, store)
+
+# Each folder under skills/ is one skill, served at skill://<folder>/SKILL.md and
+# listed by skills/list; under SEP-2640 the folder name must equal the frontmatter
+# name. The older upjack://skills/<folder> resources stay for callers that read them.
+_skills = SkillsDirectoryProvider(_PROJECT_ROOT / "skills", experimental_skills=True)
+mcp.add_provider(_skills)
+mcp.add_extension(SkillsOnEveryEra(providers=[_skills]))
 
 # Tools that change CRM records, beyond the create_*, update_* and delete_* CRUD tools.
 WRITE_TOOLS = frozenset(
