@@ -1,11 +1,11 @@
-# CRM — Upjack Demo App
+# CRM — Synapse Demo App
 
 [![mpak](https://img.shields.io/badge/mpak-registry-blue)](https://mpak.dev/packages/@nimblebraininc/synapse-crm?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
 [![NimbleBrain](https://img.shields.io/badge/NimbleBrain-nimblebrain.ai-purple)](https://nimblebrain.ai?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
 [![Discord](https://img.shields.io/badge/Discord-community-5865F2)](https://nimblebrain.ai/discord?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews, built with Upjack.
+Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews, built on FastMCP. Records are JSON files under the workspace, one per contact, deal or interaction, read and written by `src/synapse_crm/store.py`.
 
 **[View on mpak registry](https://mpak.dev/packages/@nimblebraininc/synapse-crm?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)** | **Built by [NimbleBrain](https://nimblebrain.ai?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)**
 
@@ -28,6 +28,8 @@ Lightweight contact and deal tracker with agent-driven follow-ups and pipeline r
 | Deal | `dl_` | [deal.schema.json](schemas/deal.schema.json) | Sales opportunities with stage, value, and close date. |
 | Interaction | `ix_` | [interaction.schema.json](schemas/interaction.schema.json) | Activity log: meetings, emails, calls, notes. |
 
+`add_field` writes a new field into the entity's schema file and the store validates it from that call on. The `create_*` and `update_*` argument schemas are built when the server starts, so `tools/list` shows the field after the next start, as it did under Upjack.
+
 ## Custom Tools
 
 | Tool | Purpose |
@@ -38,6 +40,8 @@ Lightweight contact and deal tracker with agent-driven follow-ups and pipeline r
 | `contact_timeline` | Full interaction history for a contact (newest first) |
 
 ## Skills
+
+The server serves both skills over MCP under SEP-2640 (`io.modelcontextprotocol/skills`): `skills/list` and `skills/get` describe them, and `resources/read` returns `skill://follow-up-coach/SKILL.md` and `skill://pipeline-reviewer/SKILL.md`. Each folder name equals the `name` in its frontmatter, as the SEP requires. Both methods answer on the 2025-11-25 handshake era as well as 2026-07-28 (`src/synapse_crm/skills.py`). The older `upjack://skills/<folder>` resources still return the same files.
 
 ### [Follow-Up Coach](skills/follow-up-coach/SKILL.md)
 
@@ -69,6 +73,9 @@ synapse-crm/
 ├── src/synapse_crm/
 │   ├── __init__.py
 │   ├── server.py
+│   ├── skills.py         # skills/list and skills/get on every protocol era
+│   ├── store.py          # records as JSON files, schema validation, relationship queries
+│   ├── entity_tools.py   # generated CRUD, relationship, seed, schema and index tools
 │   └── tools/
 │       ├── __init__.py
 │       ├── move_deal_stage.py

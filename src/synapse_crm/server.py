@@ -1,46 +1,64 @@
-"""CRM MCP server built with Upjack + FastMCP.
+"""CRM MCP server on FastMCP, with every tool reading and writing through CRMStore.
 
-Tier 2: Auto-generated entity CRUD from manifest (contacts, deals, interactions).
-Tier 3: Custom domain tools for pipeline management and interaction tracking.
+The generated tools (entity CRUD, relationship queries, seed_data, add_field,
+rebuild_index) come from ``synapse_crm.entity_tools``; the hand-written domain
+tools from ``synapse_crm.tools``. Records live as JSON files under the
+workspace in the layout Upjack used, so an existing workspace loads unchanged.
 """
 
 import logging
 import os
 from pathlib import Path
 
+from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.middleware import Middleware
+from fastmcp.server.providers.skills import SkillsDirectoryProvider
 from mcp.server.auth.middleware.bearer_auth import RequireAuthMiddleware
-from mcp.types import ResourceListChangedNotification, ServerNotification
-from upjack.app import UpjackApp
-from upjack.server import create_server
+from mcp.types import ResourceListChangedNotification
 
+from synapse_crm.entity_tools import instructions, register_entity_tools
+from synapse_crm.skills import SkillsOnEveryEra
+from synapse_crm.store import CRMStore
 from synapse_crm.tools import register_tools
 from synapse_crm.tools.link_deals_to_contacts import link_deals_to_contacts
 
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
-manifest_path = _PROJECT_ROOT / "manifest.json"
-workspace_root = os.environ.get("MPAK_WORKSPACE", "./workspace")
-mcp = create_server(manifest_path, root=workspace_root)
 
-# Append CRM-specific instructions
-mcp._mcp_server.instructions = (
-    (mcp.instructions or "")
+
+def workspace_root() -> Path:
+    """The directory that holds ``apps/crm/data``.
+
+    ``UPJACK_ROOT`` still wins, as it did inside Upjack, so a deployment that
+    set it keeps finding its records; ``MPAK_WORKSPACE`` is the host's variable.
+    """
+    return Path(
+        os.environ.get("UPJACK_ROOT") or os.environ.get("MPAK_WORKSPACE") or "./workspace"
+    )
+
+
+mcp = FastMCP(
+    name="CRM",
+    instructions=instructions("CRM")
     + "\n\nCRITICAL — CRM Tools: "
     "Use find_or_create_contact() to add contacts — it deduplicates automatically. "
     "Use log_interaction() to create interactions — it auto-wires the contact relationship. "
     "Use move_deal_stage() for stage changes — it handles close date and probability. "
     "Use pipeline_summary() for aggregate metrics. "
-    "Use contact_timeline() to review interaction history."
+    "Use contact_timeline() to review interaction history.",
 )
+store = CRMStore(workspace_root(), _PROJECT_ROOT)
+register_entity_tools(mcp, store, _PROJECT_ROOT)
+register_tools(mcp, store)
 
-# Load app instance for custom tools
-_app = UpjackApp.from_manifest(manifest_path, root=workspace_root)
-
-# Register custom domain tools
-register_tools(mcp, _app)
+# Each folder under skills/ is one skill, served at skill://<folder>/SKILL.md and
+# listed by skills/list; under SEP-2640 the folder name must equal the frontmatter
+# name. The older upjack://skills/<folder> resources stay for callers that read them.
+_skills = SkillsDirectoryProvider(_PROJECT_ROOT / "skills", experimental_skills=True)
+mcp.add_provider(_skills)
+mcp.add_extension(SkillsOnEveryEra(providers=[_skills]))
 
 # Tools that change CRM records, beyond the create_*, update_* and delete_* CRUD tools.
 WRITE_TOOLS = frozenset(
@@ -63,14 +81,10 @@ def is_write_tool(name: str) -> bool:
 def is_error_result(content: object) -> bool:
     """Whether a tool returned the domain error shape, {"error": ...}.
 
-    add_field also adds "diagnostics". A record may carry its own "error"
-    field, so the key alone does not mark a failure.
+    A record may carry its own "error" field, so the key alone does not mark
+    a failure.
     """
-    return (
-        isinstance(content, dict)
-        and "error" in content
-        and set(content) <= {"error", "diagnostics"}
-    )
+    return isinstance(content, dict) and set(content) == {"error"}
 
 
 def _answers_in_json() -> bool:
@@ -112,7 +126,7 @@ class NotifyAfterWrites(Middleware):
                 # stateless client has no other stream. A JSON answer cannot, so
                 # then it goes to the client's GET stream.
                 await ctx.session.send_notification(
-                    ServerNotification(ResourceListChangedNotification()),
+                    ResourceListChangedNotification(),
                     related_request_id=None if _answers_in_json() else ctx.request_id,
                 )
             except Exception:
@@ -130,7 +144,7 @@ mcp.add_middleware(NotifyAfterWrites())
 # Wrapped in try/except so a transient storage error does not prevent the server
 # from starting — the tool is still callable on demand via MCP.
 try:
-    _link_result = link_deals_to_contacts(_app)
+    _link_result = link_deals_to_contacts(store)
     logger.info(
         "link_deals_to_contacts startup: linked=%d skipped=%d",
         _link_result.get("linked", 0),

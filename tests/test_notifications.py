@@ -55,11 +55,15 @@ EXPECTED_READ_TOOLS = {
 }
 
 
-async def _exercise(mcp, calls, *, auth=None, before_calls=None, notification_count=None):
+async def _exercise(
+    mcp, calls, *, auth=None, before_calls=None, notification_count=None, mode="auto"
+):
     """Make each (tool, arguments) call, then one write; return results and the notice count.
 
     HTTP callers supply the number of attempted sends after all calls return,
     so a queued earlier notice cannot substitute for an undelivered final one.
+    ``mode`` is the client's protocol era: ``auto`` negotiates the modern,
+    sessionless era with this server, ``legacy`` pins the handshake era.
     """
     results = []
     notices = 0
@@ -67,11 +71,13 @@ async def _exercise(mcp, calls, *, auth=None, before_calls=None, notification_co
 
     async def message_handler(message):
         nonlocal notices
-        if isinstance(message, ServerNotification) and message.root.method == LIST_CHANGED:
+        if isinstance(message, ServerNotification) and message.method == LIST_CHANGED:
             notices += 1
             changed.set()
 
-    async with Client(mcp, auth=auth, message_handler=message_handler, timeout=5) as client:
+    async with Client(
+        mcp, auth=auth, message_handler=message_handler, timeout=5, mode=mode
+    ) as client:
         if before_calls is not None:
             await before_calls()
         for name, arguments in calls:
@@ -152,8 +158,8 @@ def test_failed_notification_still_reports_the_write(mcp, monkeypatch):
     failed_sends = []
 
     async def closed_stream(self, notification, related_request_id=None):
-        if notification.root.method == LIST_CHANGED:
-            failed_sends.append(notification.root.method)
+        if notification.method == LIST_CHANGED:
+            failed_sends.append(notification.method)
             raise RuntimeError("stream closed")
 
     monkeypatch.setattr(ServerSession, "send_notification", closed_stream)

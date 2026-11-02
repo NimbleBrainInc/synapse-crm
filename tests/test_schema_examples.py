@@ -18,7 +18,7 @@ ENTITIES = [("contact", "ct"), ("deal", "dl"), ("interaction", "ix")]
 
 async def _input_schemas(mcp) -> dict[str, dict]:
     async with Client(mcp) as client:
-        return {t.name: t.inputSchema for t in await client.list_tools()}
+        return {t.name: t.input_schema for t in await client.list_tools()}
 
 
 @pytest.mark.parametrize(("entity", "prefix"), ENTITIES)
