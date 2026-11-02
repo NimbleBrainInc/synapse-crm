@@ -84,10 +84,10 @@ async def _tool_contract(mcp) -> dict[str, dict]:
         tools = await client.list_tools()
     return {
         tool.name: {
-            "required": sorted(tool.inputSchema.get("required", [])),
+            "required": sorted(tool.input_schema.get("required", [])),
             "properties": {
                 name: _property_type(prop)
-                for name, prop in sorted(tool.inputSchema.get("properties", {}).items())
+                for name, prop in sorted(tool.input_schema.get("properties", {}).items())
             },
         }
         for tool in sorted(tools, key=lambda t: t.name)
@@ -145,9 +145,9 @@ def test_tool_schemas_have_explicit_object_roots_for_strict_hosts(mcp):
     async def check():
         async with Client(mcp) as client:
             for tool in await client.list_tools():
-                assert tool.inputSchema.get("type") == "object", tool.name
-                if tool.outputSchema is not None:
-                    assert tool.outputSchema.get("type") == "object", tool.name
+                assert tool.input_schema.get("type") == "object", tool.name
+                if tool.output_schema is not None:
+                    assert tool.output_schema.get("type") == "object", tool.name
 
     _run(check())
 
@@ -200,8 +200,23 @@ def test_legacy_data_wrapper_rejected(mcp):
     """The pre-0.5.0 ``{data: {...}}`` shape is no longer part of the contract.
 
     ``create_deal`` requires ``title`` at the top level, so a call whose only
-    key is ``data`` fails JSON Schema validation and the client raises
-    ``ToolError`` before reaching the server.
+    key is ``data`` fails the store's JSON Schema validation on the server and
+    the client surfaces it as ``ToolError``, the same way the Upjack version did.
     """
-    with pytest.raises(ToolError):
+    with pytest.raises(ToolError, match="'title' is a required property"):
         _run(_call_tool(mcp, "create_deal", {"data": {"title": "Wrapped", "stage": "qualified"}}))
+
+
+def test_hidden_create_contact_takes_the_update_contact_fields(mcp):
+    """``create_contact`` is unlisted, so the snapshot cannot pin it; ``update_contact`` can.
+
+    The two tools publish the same contact fields, the update tool adding the
+    ``contact_id`` argument, so the hidden tool's contract is the listed one
+    less that argument, with ``name`` required as the contact schema says.
+    """
+    contract = json.loads(_CONTRACT_PATH.read_text())["update_contact"]
+    hidden = _run(mcp.get_tool("create_contact")).parameters
+    assert sorted(hidden.get("required", [])) == ["name"]
+    assert {name: _property_type(prop) for name, prop in hidden["properties"].items()} == {
+        name: kind for name, kind in contract["properties"].items() if name != "contact_id"
+    }

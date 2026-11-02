@@ -4,9 +4,13 @@ version = "0.3.2"
 description = "Lightweight CRM with contact management, deal pipeline, and agent-driven follow-ups"
 requires-python = ">=3.13"
 dependencies = [
+    # Exact pins: the release bundle installs from these constraints, not uv.lock,
+    # so a loose range would hand it an untested FastMCP minor. Bump both together.
+    "fastmcp>=4.1.4,<4.2",
     "jsonschema>=4.26",
+    "mcp>=2.3,<3",
+    "pydantic>=2.12",
     "python-ulid>=3.1",
-    "upjack[mcp]>=0.5.1",
 ]
 
 [build-system]

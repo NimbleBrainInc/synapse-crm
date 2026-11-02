@@ -1,12 +1,11 @@
 """Post-seed utility: wire deals to contacts by matching contact_name."""
 
-import sys
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 
-def link_deals_to_contacts(app: UpjackApp) -> dict[str, Any]:
+def link_deals_to_contacts(store: CRMStore) -> dict[str, Any]:
     """Find deals with a contact_name but no belongs_to relationship and link them.
 
     Matches deal.contact_name to one active contact.name (case-insensitive).
@@ -15,10 +14,9 @@ def link_deals_to_contacts(app: UpjackApp) -> dict[str, Any]:
     Returns:
         Dict with linked count, skipped count, and details.
     """
-    deals = app.list_entities("deal", limit=sys.maxsize)
-    # Upjack loads the collection before slicing; include every active contact
-    # so an older match or duplicate cannot be hidden by the result limit.
-    contacts = app.list_entities("contact", status="active", limit=sys.maxsize)
+    deals = store.list_entities("deal")
+    # Every active contact, so an older match or duplicate is never hidden.
+    contacts = store.list_entities("contact", status="active")
 
     contacts_by_name: dict[str, list[dict[str, Any]]] = {}
     for c in contacts:
@@ -60,7 +58,7 @@ def link_deals_to_contacts(app: UpjackApp) -> dict[str, Any]:
         # Wire the relationship
         contact = matches[0]
         new_rels = list(rels) + [{"rel": "belongs_to", "target": contact["id"]}]
-        app.update_entity("deal", deal["id"], {"relationships": new_rels})
+        store.update_entity("deal", deal["id"], {"relationships": new_rels})
         linked += 1
         details.append({
             "deal": deal.get("title", deal["id"]),
