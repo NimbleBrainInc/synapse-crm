@@ -1,13 +1,12 @@
 """Find an existing contact by name/email, or create one if none exists."""
 
-import sys
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 
 def find_or_create_contact(
-    app: UpjackApp,
+    store: CRMStore,
     name: str,
     email: str = "",
     phone: str = "",
@@ -38,7 +37,7 @@ def find_or_create_contact(
         return {"error": "A contact name is required."}
     # Check every active contact: a limited search page cannot show that a
     # name or email identifies exactly one person.
-    contacts = app.list_entities("contact", limit=sys.maxsize)
+    contacts = store.list_entities("contact")
 
     def _same(value: Any, wanted: str) -> bool:
         return (value or "").strip().casefold() == wanted.casefold()
@@ -77,10 +76,12 @@ def find_or_create_contact(
         if notes:
             old_notes = existing.get("notes", "") or ""
             if notes not in old_notes:
-                updates["notes"] = f"{old_notes}\n{notes}".strip() if old_notes else notes
+                updates["notes"] = (
+                    f"{old_notes}\n{notes}".strip() if old_notes else notes
+                )
 
         if updates:
-            existing = app.update_entity("contact", existing["id"], updates)
+            existing = store.update_entity("contact", existing["id"], updates)
 
         return {
             "contact": existing,
@@ -107,7 +108,7 @@ def find_or_create_contact(
     if notes:
         data["notes"] = notes
 
-    contact = app.create_entity("contact", data)
+    contact = store.create_entity("contact", data)
     return {
         "contact": contact,
         "action": "created",

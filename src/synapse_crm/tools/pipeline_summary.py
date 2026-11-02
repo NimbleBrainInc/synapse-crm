@@ -1,24 +1,23 @@
 """Aggregate pipeline metrics: deals by stage, total value, win rate."""
 
-import sys
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 _STAGE_ORDER = ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"]
 
 
-def pipeline_summary(app: UpjackApp) -> dict[str, Any]:
+def pipeline_summary(store: CRMStore) -> dict[str, Any]:
     """Compute aggregate sales pipeline metrics.
 
     Args:
-        app: UpjackApp instance.
+        store: CRMStore instance.
 
     Returns:
         Context dict with stages array, totals, weighted value, win rate,
         and next_step.
     """
-    all_deals = app.list_entities("deal", limit=sys.maxsize)
+    all_deals = store.list_entities("deal")
 
     # Group by stage
     stages: dict[str, dict[str, Any]] = {}

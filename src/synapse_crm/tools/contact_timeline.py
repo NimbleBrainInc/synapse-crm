@@ -1,19 +1,18 @@
 """Retrieve all interactions for a contact in reverse chronological order."""
 
-import sys
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 
 def contact_timeline(
-    app: UpjackApp,
+    store: CRMStore,
     contact_id: str,
 ) -> dict[str, Any]:
     """Get the full interaction history for a contact.
 
     Args:
-        app: UpjackApp instance.
+        store: CRMStore instance.
         contact_id: ID of the contact.
 
     Returns:
@@ -22,14 +21,12 @@ def contact_timeline(
     """
     # Validate contact exists
     try:
-        contact = app.get_entity("contact", contact_id)
-    except FileNotFoundError:
+        contact = store.get_entity("contact", contact_id)
+    except (FileNotFoundError, ValueError):
         return {"error": f"Contact {contact_id} not found"}
 
-    # Query interactions linked to this contact via relationship index
-    interactions = app.query_by_relationship(
-        "interaction", "belongs_to", contact_id, limit=sys.maxsize
-    )
+    # Every interaction whose belongs_to edge points at this contact
+    interactions = store.query_by_relationship("interaction", "belongs_to", contact_id)
 
     # Sort by occurred_at descending (newest first)
     interactions.sort(

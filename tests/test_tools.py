@@ -27,7 +27,6 @@ from fastmcp.exceptions import ToolError
 from synapse_crm.tools.link_deals_to_contacts import link_deals_to_contacts
 from tests.conftest import _call_tool, _run
 
-
 # ---------------------------------------------------------------------------
 # Small helpers
 # ---------------------------------------------------------------------------
