@@ -8,8 +8,10 @@ import logging
 import os
 from pathlib import Path
 
+from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.middleware import Middleware
-from mcp.types import ResourceListChangedNotification
+from mcp.server.auth.middleware.bearer_auth import RequireAuthMiddleware
+from mcp.types import ResourceListChangedNotification, ServerNotification
 from upjack.app import UpjackApp
 from upjack.server import create_server
 
@@ -71,6 +73,25 @@ def is_error_result(content: object) -> bool:
     )
 
 
+def _answers_in_json() -> bool:
+    """Whether this call came over streamable HTTP that answers with plain JSON.
+
+    A JSON answer cannot carry a notice, so the notice then goes out unbound to
+    the client's standing GET stream.
+    """
+    try:
+        request = get_http_request()
+    except RuntimeError:  # stdio
+        return False
+    # The matched route's endpoint, so an explicit http_app(json_response=...) and
+    # several mounted apps each answer for themselves. Auth wraps it once.
+    endpoint = request.scope.get("endpoint")
+    if isinstance(endpoint, RequireAuthMiddleware):
+        endpoint = endpoint.app
+    manager = getattr(endpoint, "session_manager", None)
+    return bool(manager is not None and manager.json_response)
+
+
 class NotifyAfterWrites(Middleware):
     """Send resources/list_changed once after each successful write tool call.
 
@@ -87,7 +108,13 @@ class NotifyAfterWrites(Middleware):
         name = context.message.name
         if ctx and is_write_tool(name) and not is_error_result(result.structured_content):
             try:
-                await ctx.send_notification(ResourceListChangedNotification())
+                # Tie the notice to this call so an SSE answer carries it; a
+                # stateless client has no other stream. A JSON answer cannot, so
+                # then it goes to the client's GET stream.
+                await ctx.session.send_notification(
+                    ServerNotification(ResourceListChangedNotification()),
+                    related_request_id=None if _answers_in_json() else ctx.request_id,
+                )
             except Exception:
                 logger.warning(
                     "Could not send resources/list_changed after %s", name, exc_info=True

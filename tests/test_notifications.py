@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from fastmcp import Client
-from fastmcp.server.context import Context
+from mcp.server.session import ServerSession
 from mcp.types import ServerNotification
 
 from tests.conftest import _list_tool_names, _run
@@ -55,11 +55,11 @@ EXPECTED_READ_TOOLS = {
 }
 
 
-async def _exercise(mcp, calls):
+async def _exercise(mcp, calls, *, auth=None, before_calls=None, notification_count=None):
     """Make each (tool, arguments) call, then one write; return results and the notice count.
 
-    Notifications arrive in order, so waiting for the final write's notice
-    means any notice from an earlier call has already been counted.
+    HTTP callers supply the number of attempted sends after all calls return,
+    so a queued earlier notice cannot substitute for an undelivered final one.
     """
     results = []
     notices = 0
@@ -71,14 +71,25 @@ async def _exercise(mcp, calls):
             notices += 1
             changed.set()
 
-    async with Client(mcp, message_handler=message_handler) as client:
+    async with Client(mcp, auth=auth, message_handler=message_handler, timeout=5) as client:
+        if before_calls is not None:
+            await before_calls()
         for name, arguments in calls:
             results.append(
                 await client.call_tool(name, arguments, raise_on_error=False)
             )
         changed.clear()
         await client.call_tool("find_or_create_contact", {"name": "Final write"})
-        await asyncio.wait_for(changed.wait(), timeout=2)
+        if notification_count is None:
+            await asyncio.wait_for(changed.wait(), timeout=2)
+        else:
+            # All calls have returned, so every attempted send is counted. Wait
+            # for all of them; an earlier extra notice cannot mask a dropped one.
+            expected = notification_count()
+            async with asyncio.timeout(2):
+                while notices < expected:
+                    changed.clear()
+                    await changed.wait()
     return results, notices
 
 
@@ -138,10 +149,14 @@ def test_rejected_write_sends_nothing(mcp):
 
 
 def test_failed_notification_still_reports_the_write(mcp, monkeypatch):
-    async def closed_stream(self, notification):
-        raise RuntimeError("stream closed")
+    failed_sends = []
 
-    monkeypatch.setattr(Context, "send_notification", closed_stream)
+    async def closed_stream(self, notification, related_request_id=None):
+        if notification.root.method == LIST_CHANGED:
+            failed_sends.append(notification.root.method)
+            raise RuntimeError("stream closed")
+
+    monkeypatch.setattr(ServerSession, "send_notification", closed_stream)
 
     async def write_then_read():
         async with Client(mcp) as client:
@@ -154,5 +169,6 @@ def test_failed_notification_still_reports_the_write(mcp, monkeypatch):
             return created, found
 
     created, found = _run(write_then_read())
+    assert failed_sends == [LIST_CHANGED]
     assert not created.is_error
     assert found.structured_content["title"] == "Saved deal"
