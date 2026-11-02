@@ -19,7 +19,7 @@ export function PipelineView({
         style={{
           display: "flex",
           gap: "0.75rem",
-          padding: "1rem",
+          padding: `1rem ${tokens.gutter}`,
           overflowX: "auto",
           minHeight: "calc(100vh - 140px)",
         }}

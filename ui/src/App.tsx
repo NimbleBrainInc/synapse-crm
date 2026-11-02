@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
 import { useTheme, useModelContext } from "@nimblebrain/synapse/react";
+import { AppFrame } from "@nimblebrain/synapse/ui";
 import { useDeals } from "./hooks/useDeals";
 import { useContacts } from "./hooks/useContacts";
 import { usePipelineSummary } from "./hooks/usePipelineSummary";
@@ -173,15 +174,10 @@ export default function App() {
     fontFamily: tokens.fontFamily,
   };
 
+  // AppFrame sets the font and colours and gives `tokens.gutter` the host's wide or narrow
+  // value by the frame's width, so the bars and views inset to the host's top bar title.
   return (
-    <div
-      style={{
-        fontFamily: tokens.fontFamily,
-        minHeight: "100vh",
-        background: tokens.bg,
-        color: tokens.fg,
-      }}
-    >
+    <AppFrame style={{ height: "auto", minHeight: "100vh" }}>
       <PipelineSummaryBar summary={summary} />
 
       <header
@@ -189,7 +185,7 @@ export default function App() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0.6rem 1rem",
+          padding: `0.6rem ${tokens.gutter}`,
           borderBottom: `1px solid ${tokens.border}`,
           background: tokens.bgRaised,
         }}
@@ -319,6 +315,6 @@ export default function App() {
           }
         }}
       />
-    </div>
+    </AppFrame>
   );
 }

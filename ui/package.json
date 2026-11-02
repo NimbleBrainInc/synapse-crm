@@ -12,7 +12,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@nimblebrain/synapse": "^0.35.0",
+    "@nimblebrain/synapse": "^0.38.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.0.0",

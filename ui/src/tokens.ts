@@ -25,6 +25,8 @@ export interface ResolvedTokens {
   danger: string;
   dangerSoft: string;
   success: string;
+  /** The page inset; inside `AppFrame` it narrows with the frame, as the host's top bar does. */
+  gutter: string;
 }
 
 // Static var()-based mapping. No `useTheme` needed — the host swaps the CSS
@@ -47,6 +49,7 @@ const RESOLVED: ResolvedTokens = {
   danger: ui.danger,
   dangerSoft: `color-mix(in oklab, ${ui.danger} 14%, transparent)`,
   success: ui.success,
+  gutter: ui.gutter,
 };
 
 export function useStyleTokens(): ResolvedTokens {
