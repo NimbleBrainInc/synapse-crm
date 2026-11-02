@@ -23,8 +23,8 @@ from tests.conftest import _run
 PROJECT_ROOT = Path(__file__).parent.parent
 SKILLS_EXTENSION = "io.modelcontextprotocol/skills"
 SKILLS = ["follow-up-coach", "pipeline-reviewer"]
-# NimbleBrain negotiates 2025-11-25 through the initialize handshake today; a modern client
-# discovers the sessionless 2026-07-28 era. Skills must answer on both.
+# NimbleBrain connects on the sessionless 2026-07-28 era; 2025-11-25 is compatibility coverage
+# for older clients that still use the initialize handshake. Skills must answer on both.
 ERAS = [("legacy", "2025-11-25"), ("auto", "2026-07-28")]
 
 
