@@ -13,12 +13,12 @@ from synapse_crm.tools.pipeline_summary import pipeline_summary
 __all__ = ["register_tools"]
 
 
-def register_tools(mcp, app):
+def register_tools(mcp, store):
     """Register all custom tools on the MCP server.
 
     Args:
         mcp: FastMCP server instance.
-        app: UpjackApp instance for entity access.
+        store: The CRM record store the tools read and write through.
     """
 
     @mcp.tool(
@@ -35,7 +35,7 @@ def register_tools(mcp, app):
         deal_id: str,
         stage: str,
     ) -> dict:
-        return move_deal_stage(app, deal_id, stage)
+        return move_deal_stage(store, deal_id, stage)
 
     @mcp.tool(
         name="log_interaction",
@@ -53,7 +53,9 @@ def register_tools(mcp, app):
         details: str = "",
         follow_up_date: str = "",
     ) -> dict:
-        return log_interaction(app, contact_id, interaction_type, summary, details, follow_up_date)
+        return log_interaction(
+            store, contact_id, interaction_type, summary, details, follow_up_date
+        )
 
     @mcp.tool(
         name="pipeline_summary",
@@ -64,7 +66,7 @@ def register_tools(mcp, app):
         ),
     )
     def _pipeline_summary() -> dict:
-        return pipeline_summary(app)
+        return pipeline_summary(store)
 
     @mcp.tool(
         name="find_or_create_contact",
@@ -86,7 +88,9 @@ def register_tools(mcp, app):
         lead_source: str = "",
         notes: str = "",
     ) -> dict:
-        return find_or_create_contact(app, name, email, phone, company, role, lead_source, notes)
+        return find_or_create_contact(
+            store, name, email, phone, company, role, lead_source, notes
+        )
 
     @mcp.tool(
         name="link_deals_to_contacts",
@@ -98,7 +102,7 @@ def register_tools(mcp, app):
         ),
     )
     def _link_deals_to_contacts() -> dict:
-        return link_deals_to_contacts(app)
+        return link_deals_to_contacts(store)
 
     @mcp.tool(
         name="contact_timeline",
@@ -109,4 +113,4 @@ def register_tools(mcp, app):
         ),
     )
     def _contact_timeline(contact_id: str) -> dict:
-        return contact_timeline(app, contact_id)
+        return contact_timeline(store, contact_id)

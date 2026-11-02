@@ -1,11 +1,11 @@
-# CRM — Upjack Demo App
+# CRM — Synapse Demo App
 
 [![mpak](https://img.shields.io/badge/mpak-registry-blue)](https://mpak.dev/packages/@nimblebraininc/synapse-crm?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
 [![NimbleBrain](https://img.shields.io/badge/NimbleBrain-nimblebrain.ai-purple)](https://nimblebrain.ai?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
 [![Discord](https://img.shields.io/badge/Discord-community-5865F2)](https://nimblebrain.ai/discord?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews, built with Upjack.
+Lightweight contact and deal tracker with agent-driven follow-ups and pipeline reviews, built on FastMCP. Records are JSON files under the workspace, one per contact, deal or interaction, read and written by `src/synapse_crm/store.py`.
 
 **[View on mpak registry](https://mpak.dev/packages/@nimblebraininc/synapse-crm?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)** | **Built by [NimbleBrain](https://nimblebrain.ai?utm_source=github&utm_medium=readme&utm_campaign=synapse-crm)**
 
@@ -27,6 +27,8 @@ Lightweight contact and deal tracker with agent-driven follow-ups and pipeline r
 | Contact | `ct_` | [contact.schema.json](schemas/contact.schema.json) | People — the hub entity. Deals and interactions link here. |
 | Deal | `dl_` | [deal.schema.json](schemas/deal.schema.json) | Sales opportunities with stage, value, and close date. |
 | Interaction | `ix_` | [interaction.schema.json](schemas/interaction.schema.json) | Activity log: meetings, emails, calls, notes. |
+
+`add_field` writes a new field into the entity's schema file and the store validates it from that call on. The `create_*` and `update_*` argument schemas are built when the server starts, so `tools/list` shows the field after the next start, as it did under Upjack.
 
 ## Custom Tools
 
@@ -69,6 +71,8 @@ synapse-crm/
 ├── src/synapse_crm/
 │   ├── __init__.py
 │   ├── server.py
+│   ├── store.py          # records as JSON files, schema validation, relationship queries
+│   ├── entity_tools.py   # generated CRUD, relationship, seed, schema and index tools
 │   └── tools/
 │       ├── __init__.py
 │       ├── move_deal_stage.py

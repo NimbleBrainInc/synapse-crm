@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 _VALID_TYPES = ("meeting", "email", "call", "note")
 
@@ -13,7 +13,7 @@ def _now_iso() -> str:
 
 
 def log_interaction(
-    app: UpjackApp,
+    store: CRMStore,
     contact_id: str,
     interaction_type: str,
     summary: str,
@@ -23,7 +23,7 @@ def log_interaction(
     """Create an interaction linked to a contact.
 
     Args:
-        app: UpjackApp instance.
+        store: CRMStore instance.
         contact_id: ID of the contact this interaction is for.
         interaction_type: One of: meeting, email, call, note.
         summary: Brief description of the interaction.
@@ -38,8 +38,8 @@ def log_interaction(
 
     # Validate contact exists
     try:
-        contact = app.get_entity("contact", contact_id)
-    except FileNotFoundError:
+        contact = store.get_entity("contact", contact_id)
+    except (FileNotFoundError, ValueError):
         return {"error": f"Contact {contact_id} not found"}
 
     data: dict[str, Any] = {
@@ -55,5 +55,5 @@ def log_interaction(
     if follow_up_date:
         data["follow_up_date"] = follow_up_date
 
-    interaction = app.create_entity("interaction", data)
+    interaction = store.create_entity("interaction", data)
     return interaction

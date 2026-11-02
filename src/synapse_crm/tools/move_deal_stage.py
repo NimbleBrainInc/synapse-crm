@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from upjack.app import UpjackApp
+from synapse_crm.store import CRMStore
 
 _VALID_STAGES = ("lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost")
 _CLOSED_STAGES = ("closed_won", "closed_lost")
@@ -14,14 +14,14 @@ def _today_iso() -> str:
 
 
 def move_deal_stage(
-    app: UpjackApp,
+    store: CRMStore,
     deal_id: str,
     stage: str,
 ) -> dict[str, Any]:
     """Move a deal to a new pipeline stage.
 
     Args:
-        app: UpjackApp instance.
+        store: CRMStore instance.
         deal_id: ID of the deal to move.
         stage: Target stage (must be a valid pipeline stage).
 
@@ -33,8 +33,8 @@ def move_deal_stage(
         return {"error": f"Invalid stage '{stage}'. Must be one of: {', '.join(_VALID_STAGES)}"}
 
     try:
-        deal = app.get_entity("deal", deal_id)
-    except FileNotFoundError:
+        deal = store.get_entity("deal", deal_id)
+    except (FileNotFoundError, ValueError):
         return {"error": f"Deal {deal_id} not found"}
 
     previous_stage = deal.get("stage", "lead")
@@ -60,7 +60,7 @@ def move_deal_stage(
     }
     update_data["probability"] = stage_probabilities[stage]
 
-    updated_deal = app.update_entity("deal", deal_id, update_data)
+    updated_deal = store.update_entity("deal", deal_id, update_data)
 
     # Build next_step guidance
     next_steps = {
