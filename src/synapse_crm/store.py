@@ -125,7 +125,7 @@ class CRMStore:
     """CRM records stored as one JSON file each under the workspace root."""
 
     def __init__(self, root: str | Path, project_root: str | Path) -> None:
-        """Load the entity schemas.
+        """Check that every entity schema and its workspace declarations load.
 
         Args:
             root: Workspace root that holds ``apps/crm/data``.
@@ -135,7 +135,8 @@ class CRMStore:
         self._lock = RLock()
         self._schema_dir = Path(project_root).resolve() / "schemas"
         self._base = _load_base(self._schema_dir)
-        self._schemas = {kind: self._read_schema(kind) for kind in ENTITIES}
+        for kind in ENTITIES:
+            self._read_schema(kind)
 
     def _fields_path(self, kind: str) -> Path:
         return self._path(f"apps/crm/schemas/{kind}.fields.json")
@@ -223,8 +224,7 @@ class CRMStore:
         Returns:
             A copy of the schema the store validates records of this kind against.
         """
-        self._schemas[kind] = self._read_schema(kind)
-        return deepcopy(self._schemas[kind])
+        return deepcopy(self._read_schema(kind))
 
     def base_schema(self) -> dict[str, Any]:
         """The base record schema as :meth:`schema` inlines it under ``allOf``."""
@@ -299,8 +299,7 @@ class CRMStore:
         validate: bool = True,
     ) -> dict[str, Any]:
         if validate:
-            self._schemas[kind] = self._read_schema(kind)
-            schema = self._schemas[kind]
+            schema = self._read_schema(kind)
             record = self._hydrate(kind, record, schema)
             Draft202012Validator(schema).validate(record)
         self._atomic(self._entity_path(kind, record["id"]), record)
@@ -312,8 +311,7 @@ class CRMStore:
         self, kind: str, record: dict[str, Any], schema: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         if schema is None:
-            self._schemas[kind] = self._read_schema(kind)
-            schema = self._schemas[kind]
+            schema = self._read_schema(kind)
         record = deepcopy(record)
         for part in [*schema.get("allOf", []), schema]:
             for field, definition in part.get("properties", {}).items():
@@ -322,7 +320,7 @@ class CRMStore:
         return record
 
     def _all(self, kind: str) -> list[dict[str, Any]]:
-        schema = self._schemas[kind] = self._read_schema(kind)
+        schema = self._read_schema(kind)
         directory = self._path(f"apps/crm/data/{ENTITIES[kind][0]}")
         records = []
         for path in sorted(directory.glob("*.json")):
@@ -681,7 +679,9 @@ class CRMStore:
                 fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
             except FileExistsError:
                 return {
-                    "error": f"Schema extension writer already holds {kind}.fields.lock"
+                    "error": f"Schema extension writer already holds {kind}.fields.lock;"
+                    " retry after it finishes, or see the README's Custom field storage"
+                    " section if a crashed writer left the lock"
                 }
             os.close(fd)
             try:
@@ -706,9 +706,8 @@ class CRMStore:
                 if description:
                     definition["description"] = description
                 fields[field_name] = definition
-                schema = self._read_schema(kind, fields)
+                self._read_schema(kind, fields)  # refuse before writing anything
                 self._atomic(path, {"version": 1, "fields": fields})
-                self._schemas[kind] = schema
             finally:
                 lock_path.unlink()
         return {
