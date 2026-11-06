@@ -283,7 +283,7 @@ def test_seed_data_loads_every_sample_record_once(mcp, app):
     assert _run(_call_tool(mcp, "pipeline_summary", {}))["totals"]["active_deals"] > 0
 
 
-def test_add_field_writes_the_schema_and_validates_with_it(tmp_path):
+def test_add_field_writes_workspace_fields_and_validates_with_them(tmp_path):
     schemas = tmp_path / "project/schemas"
     schemas.mkdir(parents=True)
     for path in (ROOT / "schemas").glob("*.json"):
@@ -315,13 +315,16 @@ def test_add_field_writes_the_schema_and_validates_with_it(tmp_path):
             "required": True,
         },
     }
-    saved = json.loads((schemas / "deal.schema.json").read_text())
-    assert saved["properties"]["region"] == {
+    saved = json.loads(
+        (tmp_path / "workspace/apps/crm/schemas/deal.fields.json").read_text()
+    )
+    assert saved["fields"]["region"] == {
         "type": "string",
         "default": "west",
         "description": "Sales region",
+        "required": True,
     }
-    assert "region" in saved["required"]
+    assert "region" in store.schema("deal")["required"]
     assert store.create_entity("deal", {"title": "Defaulted"})["region"] == "west"
     with pytest.raises(ValidationError):
         store.create_entity("deal", {"title": "Wrong type", "region": 3})
