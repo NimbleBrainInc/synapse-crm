@@ -1,5 +1,6 @@
 """CRM records in the existing workspace JSON format."""
 
+import fcntl
 import json
 import operator
 import os
@@ -675,16 +676,17 @@ class CRMStore:
             path = self._fields_path(kind)
             lock_path = self._path(f"apps/crm/schemas/{kind}.fields.lock")
             lock_path.parent.mkdir(parents=True, exist_ok=True)
+            # The lock is the flock, not the file: the kernel releases it when
+            # the holder exits, so a killed writer leaves nothing to clean up.
+            fd = os.open(lock_path, os.O_CREAT | os.O_WRONLY, 0o600)
             try:
-                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-            except FileExistsError:
-                return {
-                    "error": f"Schema extension writer already holds {kind}.fields.lock;"
-                    " retry after it finishes, or see the README's Custom field storage"
-                    " section if a crashed writer left the lock"
-                }
-            os.close(fd)
-            try:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    return {
+                        "error": f"Schema extension writer already holds {kind}.fields.lock;"
+                        " retry after it finishes"
+                    }
                 fields = self._read_fields(kind)
                 schema = self._read_schema(kind, fields)
                 properties = {
@@ -709,7 +711,7 @@ class CRMStore:
                 self._read_schema(kind, fields)  # refuse before writing anything
                 self._atomic(path, {"version": 1, "fields": fields})
             finally:
-                lock_path.unlink()
+                os.close(fd)
         return {
             "success": True,
             "entity_type": kind,

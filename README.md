@@ -116,11 +116,10 @@ tool argument schemas include new fields after the server restarts.
 
 Malformed declarations or a name that collides with a bundled or base field stop
 schema loading. Reconcile the definitions explicitly before restarting; neither
-side silently overrides the other. Field additions use an exclusive
+side silently overrides the other. Field additions hold an exclusive lock on
 `<kind>.fields.lock` in the same workspace directory. A competing writer gets an
-error and may retry after the first call finishes. After a crashed writer, an
-operator must verify no writer is active and inspect the declarations before
-removing the lock; the app never takes a lock based on its age.
+error and may retry after the first call finishes. The operating system releases
+the lock when its process exits, so a crashed writer leaves nothing to remove.
 
 Customizations already present in bundled schema files remain readable in place.
 This does not migrate them: retain the customized installation and a recoverable
