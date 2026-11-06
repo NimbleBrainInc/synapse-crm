@@ -104,6 +104,23 @@ def _load_schema(schemas: Path, kind: str, base: dict[str, Any]) -> dict[str, An
     return schema
 
 
+class SchemaExtensionError(RuntimeError):
+    """Workspace declarations cannot be safely merged with the installed schema.
+
+    Not a ``ValueError``, so callers that treat a bad ID or record as "not found"
+    never hide a failure that affects every record of the kind.
+    """
+
+
+def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate schema extension key: {key}")
+        result[key] = value
+    return result
+
+
 class CRMStore:
     """CRM records stored as one JSON file each under the workspace root."""
 
@@ -118,9 +135,84 @@ class CRMStore:
         self._lock = RLock()
         self._schema_dir = Path(project_root).resolve() / "schemas"
         self._base = _load_base(self._schema_dir)
-        self._schemas = {
-            kind: _load_schema(self._schema_dir, kind, self._base) for kind in ENTITIES
-        }
+        self._schemas = {kind: self._read_schema(kind) for kind in ENTITIES}
+
+    def _fields_path(self, kind: str) -> Path:
+        return self._path(f"apps/crm/schemas/{kind}.fields.json")
+
+    def _read_fields(self, kind: str) -> dict[str, Any]:
+        try:
+            path = self._fields_path(kind)
+            data = json.loads(path.read_text(), object_pairs_hook=_unique_keys)
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError) as error:
+            raise SchemaExtensionError(
+                f"Invalid {kind} schema extensions: {error}"
+            ) from None
+        if (
+            not isinstance(data, dict)
+            or set(data) != {"version", "fields"}
+            or type(data["version"]) is not int
+            or data["version"] != 1
+            or not isinstance(data["fields"], dict)
+        ):
+            raise SchemaExtensionError(f"Invalid {kind} schema extensions")
+        return data["fields"]
+
+    def _read_schema(
+        self, kind: str, fields: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        try:
+            schema = _load_schema(self._schema_dir, kind, self._base)
+        except (OSError, ValueError, TypeError, AttributeError):
+            raise SchemaExtensionError(f"Cannot load {kind} bundled schema") from None
+        if not isinstance(schema, dict) or not isinstance(
+            schema.get("properties", {}), dict
+        ):
+            raise SchemaExtensionError(f"Invalid {kind} bundled schema")
+        if fields is None:
+            fields = self._read_fields(kind)
+        properties = schema.setdefault("properties", {})
+        for name, field in fields.items():
+            if (
+                not re.fullmatch(r"[a-z][a-z0-9_]*", name)
+                or name in BASE_FIELDS
+                or name in self._base.get("properties", {})
+                or name in properties
+            ):
+                raise SchemaExtensionError(
+                    f"Invalid or colliding {kind} schema extension: {name}"
+                )
+            if (
+                not isinstance(field, dict)
+                or not {"type", "default", "required"} <= field.keys()
+                or field.keys() - {"type", "default", "required", "description"}
+                or not isinstance(field["type"], str)
+                or field["type"] not in _FIELD_TYPES
+                or not isinstance(field["required"], bool)
+                or not isinstance(field.get("description", ""), str)
+            ):
+                raise SchemaExtensionError(f"Invalid {kind} schema extension: {name}")
+            if not Draft202012Validator({"type": field["type"]}).is_valid(
+                field["default"]
+            ):
+                raise SchemaExtensionError(
+                    f"Invalid {kind} schema extension default: {name}"
+                )
+            # JSON permits no NaN or infinity, including inside array/object defaults.
+            try:
+                json.dumps(field["default"], allow_nan=False)
+            except (ValueError, TypeError):
+                raise SchemaExtensionError(
+                    f"Invalid {kind} schema extension default: {name}"
+                ) from None
+            properties[name] = {
+                key: value for key, value in field.items() if key != "required"
+            }
+            if field["required"]:
+                schema.setdefault("required", []).append(name)
+        return schema
 
     def schema(self, kind: str) -> dict[str, Any]:
         """The entity schema for ``kind`` with the base record schema inlined.
@@ -131,6 +223,7 @@ class CRMStore:
         Returns:
             A copy of the schema the store validates records of this kind against.
         """
+        self._schemas[kind] = self._read_schema(kind)
         return deepcopy(self._schemas[kind])
 
     def base_schema(self) -> dict[str, Any]:
@@ -206,29 +299,42 @@ class CRMStore:
         validate: bool = True,
     ) -> dict[str, Any]:
         if validate:
-            Draft202012Validator(self._schemas[kind]).validate(record)
+            self._schemas[kind] = self._read_schema(kind)
+            schema = self._schemas[kind]
+            record = self._hydrate(kind, record, schema)
+            Draft202012Validator(schema).validate(record)
         self._atomic(self._entity_path(kind, record["id"]), record)
         if edges_changed:
             self.rebuild_index()
         return deepcopy(record)
 
-    def _hydrate(self, kind: str, record: dict[str, Any]) -> dict[str, Any]:
+    def _hydrate(
+        self, kind: str, record: dict[str, Any], schema: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        if schema is None:
+            self._schemas[kind] = self._read_schema(kind)
+            schema = self._schemas[kind]
         record = deepcopy(record)
-        for schema in [*self._schemas[kind].get("allOf", []), self._schemas[kind]]:
-            for field, definition in schema.get("properties", {}).items():
+        for part in [*schema.get("allOf", []), schema]:
+            for field, definition in part.get("properties", {}).items():
                 if field not in record and "default" in definition:
                     record[field] = deepcopy(definition["default"])
         return record
 
     def _all(self, kind: str) -> list[dict[str, Any]]:
+        schema = self._schemas[kind] = self._read_schema(kind)
         directory = self._path(f"apps/crm/data/{ENTITIES[kind][0]}")
         records = []
         for path in sorted(directory.glob("*.json")):
-            try:
-                records.append(self.get_entity(kind, path.stem))
-            except (ValueError, FileNotFoundError):
-                # Bad JSON, a name that is not an ID, or a file removed since the glob.
-                continue
+            with self._lock:
+                try:
+                    record = json.loads(self._entity_path(kind, path.stem).read_text())
+                    if not isinstance(record, dict):
+                        continue
+                except (ValueError, FileNotFoundError):
+                    # Skip unreadable records, never shared schema failures.
+                    continue
+                records.append(self._hydrate(kind, record, schema))
         return records
 
     def create_entity(
@@ -525,7 +631,7 @@ class CRMStore:
         description: str = "",
         required: bool = True,
     ) -> dict[str, Any]:
-        """Add a field to an entity schema on disk and start validating with it.
+        """Save a workspace field declaration and start validating with it.
 
         Args:
             kind: One of contact, deal or interaction.
@@ -553,32 +659,58 @@ class CRMStore:
         fits = isinstance(default, _FIELD_TYPES[field_type]) and (
             field_type == "boolean" or not isinstance(default, bool)
         )
+        if fits:
+            # JSON permits no NaN or infinity, including inside array/object defaults.
+            try:
+                json.dumps(default, allow_nan=False)
+            except (ValueError, TypeError):
+                fits = False
         if not fits:
             return {
                 "error": f"Default value {default!r} is not compatible with type '{field_type}'"
             }
         if kind not in ENTITIES:
             return {"error": f"Unknown entity type '{kind}'"}
+        if not isinstance(required, bool) or not isinstance(description, str):
+            return {"error": "required must be boolean and description must be string"}
         with self._lock:
-            path = self._schema_dir / f"{kind}.schema.json"
-            schema = json.loads(path.read_text())
-            properties = schema.setdefault("properties", {})
-            if field_name in properties:
-                existing = properties[field_name].get("type")
-                if existing and existing != field_type:
-                    return {
-                        "error": f"Field '{field_name}' already exists with type '{existing}'"
-                    }
-                return {"error": f"Field '{field_name}' already exists"}
-            definition: dict[str, Any] = {"type": field_type, "default": default}
-            if description:
-                definition["description"] = description
-            properties[field_name] = definition
-            if required and field_name not in schema.setdefault("required", []):
-                schema["required"].append(field_name)
-            # Every schema loads at startup, so a torn write here would stop the server.
-            self._atomic(path, schema)
-            self._schemas[kind] = _load_schema(self._schema_dir, kind, self._base)
+            path = self._fields_path(kind)
+            lock_path = self._path(f"apps/crm/schemas/{kind}.fields.lock")
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            except FileExistsError:
+                return {
+                    "error": f"Schema extension writer already holds {kind}.fields.lock"
+                }
+            os.close(fd)
+            try:
+                fields = self._read_fields(kind)
+                schema = self._read_schema(kind, fields)
+                properties = {
+                    **self._base.get("properties", {}),
+                    **schema.get("properties", {}),
+                }
+                if field_name in properties:
+                    existing = properties[field_name].get("type")
+                    if existing and existing != field_type:
+                        return {
+                            "error": f"Field '{field_name}' already exists with type '{existing}'"
+                        }
+                    return {"error": f"Field '{field_name}' already exists"}
+                definition: dict[str, Any] = {
+                    "type": field_type,
+                    "default": deepcopy(default),
+                    "required": required,
+                }
+                if description:
+                    definition["description"] = description
+                fields[field_name] = definition
+                schema = self._read_schema(kind, fields)
+                self._atomic(path, {"version": 1, "fields": fields})
+                self._schemas[kind] = schema
+            finally:
+                lock_path.unlink()
         return {
             "success": True,
             "entity_type": kind,

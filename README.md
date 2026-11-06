@@ -28,7 +28,7 @@ Lightweight contact and deal tracker with agent-driven follow-ups and pipeline r
 | Deal | `dl_` | [deal.schema.json](schemas/deal.schema.json) | Sales opportunities with stage, value, and close date. |
 | Interaction | `ix_` | [interaction.schema.json](schemas/interaction.schema.json) | Activity log: meetings, emails, calls, notes. |
 
-`add_field` writes a new field into the entity's schema file and the store validates it from that call on. The `create_*` and `update_*` argument schemas are built when the server starts, so `tools/list` shows the field after the next start, as it did under Upjack.
+`add_field` saves a new field in the workspace and the store validates it from that call on. The `create_*` and `update_*` argument schemas are built when the server starts, so `tools/list` shows the field after the next start, as it did under Upjack.
 
 ## Custom Tools
 
@@ -104,3 +104,26 @@ make run-http     # HTTP mode on port 8001
 make dev          # vite dev server for the UI
 make bundle       # refresh deps/ snapshot for platform install
 ```
+
+## Custom field storage
+
+`add_field` stores declarations in `apps/crm/schemas/<kind>.fields.json`
+under the workspace root. Each file contains `{"version": 1, "fields": {...}}`;
+fields carry their type, default, required flag and optional description. Bundled
+`schemas/*.schema.json` stay unchanged. Missing values take the field default in
+memory, and existing record values and metadata are retained. The generated CRUD
+tool argument schemas include new fields after the server restarts.
+
+Malformed declarations or a name that collides with a bundled or base field stop
+schema loading. Reconcile the definitions explicitly before restarting; neither
+side silently overrides the other. Field additions use an exclusive
+`<kind>.fields.lock` in the same workspace directory. A competing writer gets an
+error and may retry after the first call finishes. After a crashed writer, an
+operator must verify no writer is active and inspect the declarations before
+removing the lock; the app never takes a lock based on its age.
+
+Customizations already present in bundled schema files remain readable in place.
+This does not migrate them: retain the customized installation and a recoverable
+copy before replacing it, then explicitly reconcile its field definitions with
+the replacement package and workspace declarations. Do not replace a customized
+package until that migration is complete.
